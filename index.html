@@ -1,12 +1,13 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<link rel="icon" href="favicon.ico" type="image/x-icon" />
-  <meta charset="UTF-8" />
-  <title>360 Issue Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
+<link href="favicon.ico" rel="icon" type="image/x-icon"/>
+<meta charset="utf-8"/>
+<title>360 Issue Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
     body {
       font-family: 'Inter', sans-serif;
       background: #f0f2f5;
@@ -72,38 +73,33 @@
   </style>
 </head>
 <body>
-  <h2>360 Issue Dashboard</h2>
-
-  <div class="filters">
-    <label>Month:</label><select id="monthFilter"><option value="">All</option></select>
-    <label>Severity:</label><select id="severityFilter"><option value="">All</option></select>
-    <label>Issue:</label><select id="issueFilter"><option value="">All</option></select>
-    <label>QC:</label><select id="qcFilter"><option value="">All</option></select>
-    <label>Enterprise:</label><select id="enterpriseFilter"><option value="">All</option></select>
-    <label>Product Type:</label><select id="productTypeFilter"><option value="">All</option></select>
-  </div>
-
-  <div class="summary">
-    <div>Total Unique Spins: <span id="spinCount">0</span> |
+<h2>360 Issue Dashboard</h2>
+<div class="filters">
+<label>Month:</label><select id="monthFilter"><option value="">All</option></select>
+<label>Severity:</label><select id="severityFilter"><option value="">All</option></select>
+<label>Issue:</label><select id="issueFilter"><option value="">All</option></select>
+<label>QC:</label><select id="qcFilter"><option value="">All</option></select>
+<label>Enterprise:</label><select id="enterpriseFilter"><option value="">All</option></select>
+<label>Product Type:</label><select id="productTypeFilter"><option value="">All</option></select>
+</div>
+<div class="summary">
+<div>Total Unique Spins: <span id="spinCount">0</span> |
     Total Spins (from Total file): <span id="totalCount">0</span></div>
-    <div id="severityPercentages" style="margin-top: 20px;"></div>
-  </div>
-
-  <div class="container">
-    <div class="left-panel">
-      <table id="dataTable">
-        <thead><tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="right-panel">
-      <h3>Issue % (Based on Total Spins)</h3>
-      <div id="issueSummaryBox"></div>
-    </div>
-  </div>
-
-  <iframe id="spinIframe"></iframe>
-
+<div id="severityPercentages" style="margin-top: 20px;"></div>
+</div>
+<div class="container">
+<div class="left-panel">
+<table id="dataTable">
+<thead><tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="right-panel">
+<h3>Issue % (Based on Total Spins)</h3>
+<div id="issueSummaryBox"></div>
+</div>
+</div>
+<iframe id="spinIframe"></iframe>
 <script>
 const qcCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=1101979832&single=true&output=csv";
 const totalCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=588987298&single=true&output=csv";
