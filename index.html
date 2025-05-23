@@ -150,6 +150,7 @@ function populateDropdowns(data) {
   const keys = Object.keys(getFilterValues());
   keys.forEach(key => {
     const select = document.getElementById(key.toLowerCase() + 'Filter');
+    if (!select) return;
     const options = [...new Set(data.map(r => r[key]).filter(Boolean))];
     select.innerHTML = `<option value="">All</option>` +
       options.map(v => `<option value="${v}">${v}</option>`).join('');
