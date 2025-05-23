@@ -154,7 +154,17 @@ function populateDropdowns(data) {
     const options = [...new Set(data.map(r => r[key]).filter(Boolean))];
     select.innerHTML = `<option value="">All</option>` +
       options.map(v => `<option value="${v}">${v}</option>`).join('');
+    
+    let debounceTimer;
     select.onchange = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        document.getElementById('issueSummaryBox').innerHTML = '<p style="padding:10px;color:#999;">Loading summary...</p>';
+        renderTable(filterData(rawData));
+        updateSummary();
+      }, 250);
+    };
+    
       renderTable(filterData(rawData));
       updateSummary();
     };
