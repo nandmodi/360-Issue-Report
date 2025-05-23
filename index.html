@@ -176,9 +176,10 @@ function filterData(data) {
 function renderTable(data) {
   const tbody = document.querySelector('#dataTable tbody');
   const iframe = document.getElementById('spinIframe');
-  tbody.innerHTML = '';
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
   const uniqueSpins = new Set();
 
+  const fragment = document.createDocumentFragment();
   data.forEach(row => {
     const id = row['Spin_id'] || '';
     if (id) uniqueSpins.add(id);
@@ -194,9 +195,10 @@ function renderTable(data) {
         iframe.style.display = 'block';
       }
     };
-    tbody.appendChild(tr);
+    fragment.appendChild(tr);
   });
 
+  tbody.appendChild(fragment);
   document.getElementById('spinCount').textContent = uniqueSpins.size;
 }
 
@@ -247,7 +249,14 @@ function updateSummary() {
     `<tr><td>${r.Issue}</td><td><b>${r.Total}%</b> (${r.TotalCount})</td><td>${r.Blocker}</td><td>${r.High}</td><td>${r.Low}</td></tr>`
   ).join('');
 
-  document.getElementById('issueSummaryBox').innerHTML = `<table border="1">${thead}${tbody}</table>`;
+  
+const box = document.getElementById('issueSummaryBox');
+box.innerHTML = '';
+const table = document.createElement('table');
+table.border = "1";
+table.innerHTML = thead + tbody;
+box.appendChild(table);
+
 }
 
 function sortTable(col) {
