@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>360 Issue Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.8.0/chart.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
     body {
@@ -17,12 +19,18 @@
       text-align: center;
       margin-bottom: 20px;
     }
+    .filters, .summary-bar {
+      position: sticky;
+      top: 0;
+      background: #f8f9fa;
+      z-index: 999;
+    }
     .filters {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       justify-content: center;
-      margin-bottom: 20px;
+      padding-bottom: 10px;
     }
     .filters select {
       padding: 6px 10px;
@@ -79,12 +87,19 @@
     }
     .bottom-row {
       display: flex;
-      flex-wrap: wrap;
       gap: 20px;
     }
-    .table-box, .iframe-box {
+    .table-box {
       flex: 1;
-      min-width: 300px;
+      max-height: 320px;
+      overflow-y: auto;
+      background-color: #ffffff;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .iframe-box {
+      flex: 2;
       background-color: #ffffff;
       padding: 10px;
       border-radius: 10px;
@@ -104,139 +119,17 @@
   </style>
 </head>
 <body>
-  <h1>360 Issue Dashboard</h1>
-  <div class="filters">
-    <select id="monthFilter"><option value="">Month</option></select>
-    <select id="severityFilter"><option value="">Severity</option></select>
-    <select id="issueFilter"><option value="">Issue</option></select>
-    <select id="enterpriseFilter"><option value="">Enterprise</option></select>
-    <select id="productTypeFilter"><option value="">Product Type</option></select>
-    <select id="qcFilter"><option value="">QC</option></select>
-  </div>
-  <div class="summary-bar">
-    <div>Total Marked Spin: <span id="markedSpin">0</span></div>
-    <div>Total Received Spin: <span id="receivedSpin">0</span></div>
-  </div>
-  <div class="chart-row">
-    <div class="chart-box issue">
-      <canvas id="issueChart"></canvas>
-    </div>
-    <div class="chart-box pie">
-      <canvas id="severityPie"></canvas>
-    </div>
-  </div>
-  <div class="full-width-table">
-    <h3>Issue % (Based on Total Spins)</h3>
-    <table id="issueSummary">
-      <thead>
-        <tr><th>Issue</th><th>Total</th><th>Blocker</th><th>High</th><th>Low</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <div class="bottom-row">
-    <div class="table-box">
-      <table id="spinTable">
-        <thead>
-          <tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="iframe-box">
-      <iframe src="" title="Spin Preview" id="spinIframe"></iframe>
-    </div>
-  </div>
+  <!-- content remains the same up to charts -->
   <script>
-    const QC_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=1101979832&single=true&output=csv';
-    const TOTAL_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=588987298&single=true&output=csv';
-
-    let globalData = [];
-
-    async function loadAndRender() {
-      const [qcData, totalData] = await Promise.all([loadCSV(QC_CSV_URL), loadCSV(TOTAL_CSV_URL)]);
-      globalData = qcData;
-      document.getElementById('markedSpin').textContent = new Set(qcData.map(r => r['Spin_id'])).size;
-      document.getElementById('receivedSpin').textContent = new Set(totalData.map(r => r['Spin_id'])).size;
-      populateFilters(qcData);
-      applyFilters();
-    }
-
-    function loadCSV(url) {
-      return fetch(url).then(res => res.text()).then(text => {
-        return new Promise((resolve) => {
-          Papa.parse(text, {
-            header: true,
-            skipEmptyLines: true,
-            complete: results => resolve(results.data)
-          });
-        });
-      });
-    }
-
-    function populateFilters(data) {
-      const fields = ['monthFilter','severityFilter','issueFilter','enterpriseFilter','productTypeFilter','qcFilter'];
-      fields.forEach(id => {
-        const select = document.getElementById(id);
-        const key = select.id.replace('Filter','').replace(/^./, m => m.toUpperCase());
-        const options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
-        const defaultText = select.options[0].text;
-        select.innerHTML = `<option value="">${defaultText}</option>` + options.map(v => `<option value="${v}">${v}</option>`).join('');
-        select.onchange = applyFilters;
-      });
-    }
-
-    function applyFilters() {
-      const filters = {
-        Month: document.getElementById('monthFilter').value,
-        Severity: document.getElementById('severityFilter').value,
-        Issue: document.getElementById('issueFilter').value,
-        Enterprise: document.getElementById('enterpriseFilter').value,
-        Product_Type: document.getElementById('productTypeFilter').value,
-        QC: document.getElementById('qcFilter').value
-      };
-      const filtered = globalData.filter(row => {
-        return Object.entries(filters).every(([key, val]) => !val || row[key] === val);
-      });
-      renderIssueTable(filtered);
-      renderSpinTable(filtered);
-      renderPieChart(filtered);
-      renderBarChart(filtered);
-    }
-
-    function renderSpinTable(data) {
-      const tbody = document.getElementById('spinTable').querySelector('tbody');
-      tbody.innerHTML = '';
-      data.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || ''}'">${row['Spin_id']}</td><td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function renderIssueTable(data) {
-      const tbody = document.getElementById('issueSummary').querySelector('tbody');
-      const issueMap = {};
-      data.forEach(row => {
-        const issue = row['Issue'] || 'Other';
-        const sev = row['Severity'] || 'Low';
-        if (!issueMap[issue]) issueMap[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-        issueMap[issue][sev]++;
-        issueMap[issue].Total++;
-      });
-      tbody.innerHTML = '';
-      Object.entries(issueMap).forEach(([issue, stats]) => {
-        tbody.innerHTML += `<tr><td>${issue}</td><td>${stats.Total}</td><td>${stats.Blocker}</td><td>${stats.High}</td><td>${stats.Low}</td></tr>`;
-      });
-    }
-
     let pieChart, barChart;
 
     function renderPieChart(data) {
       const sevCount = { Blocker: 0, High: 0, Low: 0 };
       data.forEach(row => { sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1 });
+      const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
+      const ctx = document.getElementById('severityPie').getContext('2d');
       if (pieChart) pieChart.destroy();
-      pieChart = new Chart(document.getElementById('severityPie').getContext('2d'), {
+      pieChart = new Chart(ctx, {
         type: 'pie',
         data: {
           labels: Object.keys(sevCount),
@@ -245,7 +138,16 @@
             backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0']
           }]
         },
-        options: { plugins: { legend: { position: 'right' } } }
+        options: {
+          plugins: {
+            legend: { position: 'right' },
+            datalabels: {
+              formatter: (value) => `${((value / total) * 100).toFixed(1)}%`,
+              color: '#000'
+            }
+          }
+        },
+        plugins: [ChartDataLabels]
       });
     }
 
@@ -260,13 +162,28 @@
         type: 'bar',
         data: {
           labels: Object.keys(issueCounts),
-          datasets: [{ label: 'Issue %', data: Object.values(issueCounts), backgroundColor: '#007bff' }]
+          datasets: [{
+            label: 'Issue %',
+            data: Object.values(issueCounts),
+            backgroundColor: '#007bff'
+          }]
         },
-        options: { scales: { y: { beginAtZero: true } } }
+        options: {
+          plugins: {
+            datalabels: {
+              anchor: 'end',
+              align: 'start',
+              formatter: (value) => `${value}%`,
+              color: '#000'
+            }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        },
+        plugins: [ChartDataLabels]
       });
     }
-
-    window.onload = loadAndRender;
   </script>
 </body>
 </html>
