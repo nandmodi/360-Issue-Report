@@ -1,305 +1,227 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>360 Issue Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
-  <link href="favicon.ico" rel="icon" type="image/x-icon"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
     body {
-      font-family: 'Inter', sans-serif;
-      background: #f0f2f5;
-      padding: 20px;
+      font-family: Arial, sans-serif;
       margin: 0;
+      padding: 20px;
+      background-color: #f8f9fa;
     }
-    h2 { font-weight: 600; margin-bottom: 10px; color: #333; }
-    .summary, .filters {
-      background: #fff;
-      padding: 15px 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      margin-top: 20px;
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
     }
-    .filters { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
-    .filters label {
-      font-size: 14px;
-      color: #444;
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
     }
     .filters select {
       padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
       font-size: 14px;
-      min-width: 150px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
-    .container {
+    .summary-bar {
       display: flex;
-      gap: 20px;
-      margin-top: 20px;
+      justify-content: space-between;
+      background-color: #e2e6ea;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      margin-bottom: 20px;
     }
-    .left-panel, .right-panel {
-      background: #fff;
+    .chart-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .chart-box {
+      flex: 1;
+      min-width: 300px;
+      background-color: #ffffff;
+      padding: 20px;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      padding: 10px;
-      height: 400px;
-      overflow-y: auto;
     }
-    .left-panel { width: 40%; }
-    .right-panel { flex: 1; }
+    .full-width-table {
+      width: 100%;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      background-color: #ffffff;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
     }
     th, td {
-      border: 1px solid #eee;
       padding: 10px;
-      text-align: center;
-      font-size: 14px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
     }
-    th {
-      background-color: #f9fafb;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      cursor: pointer;
+    .bottom-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
     }
-    th:hover { background: #e8f0fe; }
-    tr:hover { background-color: #f4f8fc; }
+    .table-box, .iframe-box {
+      flex: 1;
+      min-width: 300px;
+      background-color: #ffffff;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
     iframe {
       width: 100%;
-      height: 500px;
+      height: 300px;
       border: none;
-      display: none;
-      margin-top: 30px;
       border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    h3 { font-weight: 600; color: #2c3e50; margin-top: 30px; margin-bottom: 10px; }
-    td b { color: #2c3e50; }
-    .sortable::after { content: " ⇅"; font-size: 12px; color: #999; }
-    .asc::after { content: " 🔼"; }
-    .desc::after { content: " 🔽"; }
-    .export-button {
-      margin-top: 10px;
-      padding: 8px 12px;
-      font-size: 14px;
-      background: #007bff;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h2>360 Issue Dashboard</h2>
-
+  <h1>360 Issue Dashboard</h1>
   <div class="filters">
-    <label>Month:</label><select id="monthFilter"><option value="">All</option></select>
-    <label>Severity:</label><select id="severityFilter"><option value="">All</option></select>
-    <label>Issue:</label><select id="issueFilter"><option value="">All</option></select>
-    <label>QC:</label><select id="qcFilter"><option value="">All</option></select>
-    <label>Enterprise:</label><select id="enterpriseFilter"><option value="">All</option></select>
-    <label>Product Type:</label><select id="productTypeFilter"><option value="">All</option></select>
+    <select id="monthFilter"><option value="">Month</option></select>
+    <select id="severityFilter"><option value="">Severity</option></select>
+    <select id="issueFilter"><option value="">Issue</option></select>
+    <select id="enterpriseFilter"><option value="">Enterprise</option></select>
+    <select id="productTypeFilter"><option value="">Product Type</option></select>
+    <select id="qcFilter"><option value="">QC</option></select>
   </div>
-
-  <div class="summary">
-    <div>Total Unique Spins: <span id="spinCount">0</span> |
-      Total Spins (from Total file): <span id="totalCount">0</span></div>
-    <div id="severityPercentages" style="margin-top: 20px;"></div>
+  <div class="summary-bar">
+    <div>Total Marked Spin: <span id="markedSpin">0</span></div>
+    <div>Total Received Spin: <span id="receivedSpin">0</span></div>
   </div>
-
-  <div class="container">
-    <div class="left-panel">
-      <table id="dataTable">
-        <thead><tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr></thead>
+  <div class="chart-row">
+    <div class="chart-box">
+      <canvas id="issueChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <canvas id="severityPie"></canvas>
+    </div>
+  </div>
+  <div class="full-width-table">
+    <h3>Issue % (Based on Total Spins)</h3>
+    <table id="issueSummary">
+      <thead>
+        <tr><th>Issue</th><th>Total</th><th>Blocker</th><th>High</th><th>Low</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="bottom-row">
+    <div class="table-box">
+      <table id="spinTable">
+        <thead>
+          <tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
-    <div class="right-panel">
-      <h3>Issue % (Based on Total Spins)</h3>
-      <div id="issueSummaryBox"></div>
-      <button class="export-button" onclick="exportTable()">Export Summary</button>
+    <div class="iframe-box">
+      <iframe src="" title="Spin Preview" id="spinIframe"></iframe>
     </div>
   </div>
-
-  <iframe id="spinIframe"></iframe>
-
   <script>
-    const qcCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=1101979832&single=true&output=csv";
-    const totalCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=588987298&single=true&output=csv";
+    const QC_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=1101979832&single=true&output=csv';
+    const TOTAL_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgqnvZQd8--vubYJV2VLcPL-cQiVm-UD9ZvbcyPqW3DieFU1qz7D2jdFsifyRe9flLx3_35JGxoO-t/pub?gid=588987298&single=true&output=csv';
 
-    let rawData = [], totalData = [];
-    let sortColumn = null, sortDirection = 'desc';
+    async function loadAndRender() {
+      const [qcData, totalData] = await Promise.all([loadCSV(QC_CSV_URL), loadCSV(TOTAL_CSV_URL)]);
+      document.getElementById('markedSpin').textContent = new Set(qcData.map(r => r['Spin_id'])).size;
+      document.getElementById('receivedSpin').textContent = new Set(totalData.map(r => r['Spin_id'])).size;
+      renderIssueTable(qcData);
+      renderSpinTable(qcData);
+      renderPieChart(qcData);
+      renderBarChart(qcData);
+    }
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      const [qc, total] = await Promise.all([fetchCsv(qcCsvUrl), fetchCsv(totalCsvUrl)]);
-      rawData = qc;
-      totalData = total;
-      populateDropdowns([...qc, ...total]);
-      renderTable(filterData(rawData));
-      updateSummary();
-    });
-
-    async function fetchCsv(url) {
-      try {
-        const res = await fetch(url);
-        const text = await res.text();
-        const [headerLine, ...lines] = text.trim().split('\n');
-        const headers = headerLine.split(',').map(h => h.trim());
-        return lines.map(line => {
-          const values = line.split(',');
-          const row = {};
-          headers.forEach((h, i) => row[h] = values[i]?.trim() || '');
-          if (row['Month']) {
-            const d = new Date(row['Month']);
-            if (!isNaN(d)) row['Month'] = d.toLocaleString('default', { month: 'long' });
-          }
-          return row;
+    function loadCSV(url) {
+      return fetch(url).then(res => res.text()).then(text => {
+        return new Promise((resolve) => {
+          Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            complete: results => resolve(results.data)
+          });
         });
-      } catch (e) {
-        alert("Failed to load data.");
-        return [];
-      }
-    }
-
-    function getFilterValues() {
-      return {
-        Month: document.getElementById('monthFilter').value,
-        Severity: document.getElementById('severityFilter').value,
-        Issue: document.getElementById('issueFilter').value,
-        QC: document.getElementById('qcFilter').value,
-        Enterprise: document.getElementById('enterpriseFilter').value,
-        Product_Type: document.getElementById('productTypeFilter').value
-      };
-    }
-
-    function populateDropdowns(data) {
-      const keys = Object.keys(getFilterValues());
-      keys.forEach(key => {
-        const select = document.getElementById(key.toLowerCase() + 'Filter');
-        if (!select) return;
-        const options = [...new Set(data.map(r => r[key]).filter(Boolean))];
-        select.innerHTML = `<option value="">All</option>` + options.map(v => `<option value="${v}">${v}</option>`).join('');
-        let debounceTimer;
-        select.onchange = () => {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            document.getElementById('issueSummaryBox').innerHTML = `<p style='padding:10px;color:#999;'>Loading summary...</p>`;
-            renderTable(filterData(rawData));
-            updateSummary();
-          }, 250);
-        };
       });
     }
 
-    function filterData(data) {
-      const f = getFilterValues();
-      return data.filter(r =>
-        (!f.Month || r.Month === f.Month) &&
-        (!f.Severity || r.Severity === f.Severity) &&
-        (!f.Issue || r.Issue === f.Issue) &&
-        (!f.QC || r.QC === f.QC) &&
-        (!f.Enterprise || r.Enterprise === f.Enterprise) &&
-        (!f.Product_Type || r.Product_Type === f.Product_Type)
-      );
-    }
-
-    function renderTable(data) {
-      const tbody = document.querySelector('#dataTable tbody');
-      const iframe = document.getElementById('spinIframe');
+    function renderSpinTable(data) {
+      const tbody = document.getElementById('spinTable').querySelector('tbody');
       tbody.innerHTML = '';
-      const uniqueSpins = new Set();
-
       data.forEach(row => {
-        const id = row['Spin_id'] || '';
-        if (id) uniqueSpins.add(id);
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="color:blue;text-decoration:underline;">${id}</td>
-          <td>${row['Issue'] || ''}</td>
-          <td>${row['Severity'] || ''}</td>
-          <td>${row['Enterprise'] || ''}</td>`;
-        tr.onclick = () => {
-          if (row['Spin']) {
-            iframe.src = row['Spin'];
-            iframe.style.display = 'block';
-          }
-        };
+        tr.innerHTML = `<td>${row['Spin_id']}</td><td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
         tbody.appendChild(tr);
       });
-
-      document.getElementById('spinCount').textContent = uniqueSpins.size;
     }
 
-    function updateSummary() {
-      const qc = filterData(rawData);
-      const total = filterData(totalData);
-      const spinIdKey = Object.keys(total[0] || {}).find(k => k.toLowerCase().includes('spin')) || 'Spin_id';
-      const totalSpins = new Set(total.map(r => r[spinIdKey]?.trim()).filter(Boolean));
-      document.getElementById('totalCount').textContent = totalSpins.size;
-
-      const stats = {};
-      qc.forEach(row => {
-        const issue = row.Issue || 'Unknown';
-        const sev = row.Severity || 'Other';
-        if (!stats[issue]) stats[issue] = { total: 0, Blocker: 0, High: 0, Low: 0 };
-        stats[issue][sev]++;
-        stats[issue].total++;
+    function renderIssueTable(data) {
+      const tbody = document.getElementById('issueSummary').querySelector('tbody');
+      const issueMap = {};
+      data.forEach(row => {
+        const issue = row['Issue'] || 'Other';
+        const sev = row['Severity'] || 'Low';
+        if (!issueMap[issue]) issueMap[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+        issueMap[issue][sev]++;
+        issueMap[issue].Total++;
       });
-
-      let rows = Object.entries(stats).map(([issue, s]) => {
-        const total = s.total;
-        return {
-          Issue: issue,
-          Total: ((total / totalSpins.size) * 100).toFixed(2),
-          TotalCount: total,
-          Blocker: `${((s.Blocker || 0) / total * 100).toFixed(2)}% (${s.Blocker || 0})`,
-          High: `${((s.High || 0) / total * 100).toFixed(2)}% (${s.High || 0})`,
-          Low: `${((s.Low || 0) / total * 100).toFixed(2)}% (${s.Low || 0})`
-        };
+      tbody.innerHTML = '';
+      Object.entries(issueMap).forEach(([issue, stats]) => {
+        tbody.innerHTML += `<tr><td>${issue}</td><td>${stats.Total}</td><td>${stats.Blocker}</td><td>${stats.High}</td><td>${stats.Low}</td></tr>`;
       });
-
-      if (sortColumn) {
-        rows.sort((a, b) => {
-          const valA = sortColumn === 'Issue' ? a[sortColumn].toLowerCase() : parseFloat(a[sortColumn]);
-          const valB = sortColumn === 'Issue' ? b[sortColumn].toLowerCase() : parseFloat(b[sortColumn]);
-          return sortDirection === 'asc' ? valA > valB ? 1 : -1 : valA < valB ? 1 : -1;
-        });
-      }
-
-      const headers = ['Issue', 'Total', 'Blocker', 'High', 'Low'];
-      const thead = `<tr>${headers.map(h => `<th class="sortable ${sortColumn === h ? sortDirection : ''}" onclick="sortTable('${h}')">${h}</th>`).join('')}</tr>`;
-      const tbody = rows.map(r =>
-        `<tr><td>${r.Issue}</td><td><b>${r.Total}%</b> (${r.TotalCount})</td><td>${r.Blocker}</td><td>${r.High}</td><td>${r.Low}</td></tr>`
-      ).join('');
-
-      const box = document.getElementById('issueSummaryBox');
-      box.innerHTML = '';
-      const table = document.createElement('table');
-      table.border = "1";
-      table.innerHTML = thead + tbody;
-      box.appendChild(table);
     }
 
-    function sortTable(col) {
-      if (sortColumn === col) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-      } else {
-        sortColumn = col;
-        sortDirection = 'desc';
-      }
-      updateSummary();
+    function renderPieChart(data) {
+      const sevCount = { Blocker: 0, High: 0, Low: 0 };
+      data.forEach(row => { sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1 });
+      new Chart(document.getElementById('severityPie').getContext('2d'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(sevCount),
+          datasets: [{
+            data: Object.values(sevCount),
+            backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0']
+          }]
+        },
+        options: { plugins: { legend: { position: 'right' } } }
+      });
     }
 
-    function exportTable() {
-      const table = document.querySelector("#issueSummaryBox table");
-      const wb = XLSX.utils.table_to_book(table, { sheet: "Issue Summary" });
-      XLSX.writeFile(wb, "issue_summary.xlsx");
+    function renderBarChart(data) {
+      const issueCounts = {};
+      data.forEach(row => {
+        const issue = row['Issue'] || 'Other';
+        issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+      });
+      new Chart(document.getElementById('issueChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(issueCounts),
+          datasets: [{ label: 'Issue %', data: Object.values(issueCounts), backgroundColor: '#007bff' }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+      });
     }
+
+    window.onload = loadAndRender;
   </script>
 </body>
 </html>
