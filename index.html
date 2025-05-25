@@ -96,17 +96,22 @@
       border: none;
       border-radius: 10px;
     }
+    .clickable {
+      color: blue;
+      text-decoration: underline;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <h1>360 Issue Dashboard</h1>
   <div class="filters">
-    <select id="monthFilter"><option value="">Month</option></select>
-    <select id="severityFilter"><option value="">Severity</option></select>
-    <select id="issueFilter"><option value="">Issue</option></select>
-    <select id="enterpriseFilter"><option value="">Enterprise</option></select>
-    <select id="productTypeFilter"><option value="">Product Type</option></select>
-    <select id="qcFilter"><option value="">QC</option></select>
+    <select id="monthFilter"><option value="">Select Month</option></select>
+    <select id="severityFilter"><option value="">Select Severity</option></select>
+    <select id="issueFilter"><option value="">Select Issue</option></select>
+    <select id="enterpriseFilter"><option value="">Select Enterprise</option></select>
+    <select id="productTypeFilter"><option value="">Select Product Type</option></select>
+    <select id="qcFilter"><option value="">Select QC</option></select>
   </div>
   <div class="summary-bar">
     <div>Total Marked Spin: <span id="markedSpin">0</span></div>
@@ -175,7 +180,8 @@
         const select = document.getElementById(id);
         const key = select.id.replace('Filter','').replace(/^./, m => m.toUpperCase());
         const options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
-        select.innerHTML = '<option value="">All</option>' + options.map(v => `<option value="${v}">${v}</option>`).join('');
+        const defaultText = select.options[0].text;
+        select.innerHTML = `<option value="">${defaultText}</option>` + options.map(v => `<option value="${v}">${v}</option>`).join('');
         select.onchange = applyFilters;
       });
     }
@@ -203,7 +209,7 @@
       tbody.innerHTML = '';
       data.forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${row['Spin_id']}</td><td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
+        tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || ''}'">${row['Spin_id']}</td><td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
         tbody.appendChild(tr);
       });
     }
