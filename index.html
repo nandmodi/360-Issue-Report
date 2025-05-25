@@ -18,13 +18,13 @@
       top: 0;
       left: 0;
       right: 0;
-      background: #fff;
+      z-index: 10000;
+      background: #ffffff;
       padding: 10px 0;
       text-align: center;
       font-weight: bold;
       font-size: 22px;
-      z-index: 10000;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
     .filters {
       position: fixed;
@@ -40,15 +40,18 @@
       justify-content: center;
       border-bottom: 1px solid #ccc;
     }
-    .filters select, .filters button {
+    .filters select {
       padding: 6px 10px;
       font-size: 14px;
       border-radius: 4px;
       border: 1px solid #ccc;
     }
     .filters button {
+      padding: 5px 10px;
       background: #007bff;
-      color: #fff;
+      color: white;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
     }
     .summary-bar {
@@ -148,12 +151,12 @@
 <div class="header-bar">360 Issue Dashboard</div>
 
 <div class="filters">
-  <select id="monthFilter"><option value="">Month</option></select>
-  <select id="severityFilter"><option value="">Severity</option></select>
-  <select id="issueFilter"><option value="">Issue</option></select>
-  <select id="enterpriseFilter"><option value="">Enterprise</option></select>
-  <select id="productTypeFilter"><option value="">Product Type</option></select>
-  <select id="qcFilter"><option value="">QC</option></select>
+  <select id="monthFilter"><option value="">Select Month</option></select>
+  <select id="severityFilter"><option value="">Select Severity</option></select>
+  <select id="issueFilter"><option value="">Select Issue</option></select>
+  <select id="enterpriseFilter"><option value="">Select Enterprise</option></select>
+  <select id="productTypeFilter"><option value="">Select Product Type</option></select>
+  <select id="qcFilter"><option value="">Select QC</option></select>
   <button onclick="resetFilters()">Reset</button>
 </div>
 
@@ -202,36 +205,28 @@
   </div>
 </div>
 <script>
-const QC_CSV_URL = 'https://script.google.com/macros/s/AKfycbxyQbgSD5Yetn43rLWz3eDP0kTSa2b1bT9CySob6EJX05Oe9Hm8yROVG0TDh7E16isT/exec';
-const TOTAL_CSV_URL = 'https://script.google.com/macros/s/AKfycbxvhuZHc98VH4uhu3LRmkgo3eiCazW0UmGj82VuUghUGfhIProRNNPnYjfyohaWFywY/exec';
-
+const QC_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmnvwYx4-c4fVbZutlJGLTmKoL3AAKWz1LBrF7Bz6LX95iMSpYjhpWQoxoqZQgkjWx5hs9fKKUm6x9/pubhtml?gid=0&single=true&output=csv';
+const TOTAL_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmnvwYx4-c4fVbZutlJGLTmKoL3AAKWz1LBrF7Bz6LX95iMSpYjhpWQoxoqZQgkjWx5hs9fKKUm6x9/pubhtml?gid=1857329025&single=true&output=csv';
 let globalData = [], pieChart, barChart;
 
 async function loadAndRender() {
-  try {
-    const [qcData, totalData] = await Promise.all([loadCSV(QC_CSV_URL), loadCSV(TOTAL_CSV_URL)]);
-    globalData = qcData;
-    document.getElementById('markedSpin').textContent = new Set(qcData.map(r => r['Spin_id'])).size;
-    document.getElementById('receivedSpin').textContent = new Set(totalData.map(r => r['Spin_id'])).size;
-    populateFilters(qcData);
-    applyFilters();
-    addTableSorting();
-  } catch (e) {
-    alert("Error loading data");
-    console.error(e);
-  }
+  const [qcData, totalData] = await Promise.all([loadCSV(QC_CSV_URL), loadCSV(TOTAL_CSV_URL)]);
+  globalData = qcData;
+  document.getElementById('markedSpin').textContent = new Set(qcData.map(r => r['Spin_id'])).size;
+  document.getElementById('receivedSpin').textContent = new Set(totalData.map(r => r['Spin_id'])).size;
+  populateFilters(qcData);
+  applyFilters();
+  addTableSorting();
 }
 
 function loadCSV(url) {
-  return fetch(url).then(res => res.text()).then(text =>
-    new Promise(resolve => {
-      Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        complete: results => resolve(results.data)
-      });
-    })
-  );
+  return fetch(url).then(res => res.text()).then(text => new Promise(resolve => {
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: results => resolve(results.data)
+    });
+  }));
 }
 
 function populateFilters(data) {
@@ -243,11 +238,11 @@ function populateFilters(data) {
     productTypeFilter: 'Product_Type',
     qcFilter: 'QC'
   };
-  Object.entries(config).forEach(([id, key]) => {
-    const select = document.getElementById(id);
-    const options = [...new Set(data.map(d => d[key]).filter(Boolean))];
-    select.innerHTML = `<option value="">${select.options[0].text}</option>` +
-      options.map(v => `<option value="${v}">${v}</option>`).join('');
+  Object.entries(config).forEach(([filterId, key]) => {
+    const select = document.getElementById(filterId);
+    const options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
+    const defaultText = select.options[0].text;
+    select.innerHTML = `<option value="">${defaultText}</option>` + options.map(v => `<option value="${v}">${v}</option>`).join('');
     select.onchange = applyFilters;
   });
 }
@@ -257,27 +252,25 @@ function resetFilters() {
     .forEach(id => document.getElementById(id).selectedIndex = 0);
   applyFilters();
 }
-
 function applyFilters() {
   const filters = {
-    Month: monthFilter.value,
-    Severity: severityFilter.value,
-    Issue: issueFilter.value,
-    Enterprise: enterpriseFilter.value,
-    Product_Type: productTypeFilter.value,
-    QC: qcFilter.value
+    Month: document.getElementById('monthFilter').value,
+    Severity: document.getElementById('severityFilter').value,
+    Issue: document.getElementById('issueFilter').value,
+    Enterprise: document.getElementById('enterpriseFilter').value,
+    Product_Type: document.getElementById('productTypeFilter').value,
+    QC: document.getElementById('qcFilter').value
   };
-  const data = globalData.filter(row =>
-    Object.entries(filters).every(([k, v]) => !v || row[k] === v)
+  const filtered = globalData.filter(row =>
+    Object.entries(filters).every(([key, val]) => !val || row[key] === val)
   );
-  renderIssueTable(data);
-  renderEnterpriseTable(data);
-  renderSpinTable(data);
-  renderPieChart(data);
-  renderBarChart(data);
+  renderIssueTable(filtered);
+  renderEnterpriseSummary(filtered);
+  renderSpinTable(filtered);
+  renderPieChart(filtered);
+  renderBarChart(filtered);
 }
-</script>
-<script>
+
 function renderIssueTable(data) {
   const tbody = document.querySelector('#issueSummary tbody');
   const map = {};
@@ -294,7 +287,7 @@ function renderIssueTable(data) {
   });
 }
 
-function renderEnterpriseTable(data) {
+function renderEnterpriseSummary(data) {
   const tbody = document.querySelector('#enterpriseSummary tbody');
   const map = {};
   data.forEach(row => {
@@ -316,23 +309,15 @@ function renderSpinTable(data) {
   const tbody = document.querySelector('#spinTable tbody');
   tbody.innerHTML = '';
   data.forEach(row => {
-    tbody.innerHTML += `
-      <tr>
-        <td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || ''}'">${row['Spin_id']}</td>
-        <td>${row['Issue']}</td>
-        <td>${row['Severity']}</td>
-        <td>${row['Enterprise']}</td>
-      </tr>`;
+    tbody.innerHTML += `<tr><td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || ''}'">${row['Spin_id']}</td><td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td></tr>`;
   });
 }
 
 function renderPieChart(data) {
   const sevCount = { Blocker: 0, High: 0, Low: 0 };
-  data.forEach(row => {
-    sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1;
-  });
-  const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
+  data.forEach(row => sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1);
   const ctx = document.getElementById('severityPie').getContext('2d');
+  const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
   if (window.pieChart) pieChart.destroy();
   pieChart = new Chart(ctx, {
     type: 'pie',
@@ -344,7 +329,7 @@ function renderPieChart(data) {
       plugins: {
         legend: { position: 'right' },
         datalabels: {
-          formatter: v => `${((v / total) * 100).toFixed(1)}%`,
+          formatter: value => `${((value / total) * 100).toFixed(1)}%`,
           color: '#000'
         }
       }
@@ -356,19 +341,21 @@ function renderPieChart(data) {
 function renderBarChart(data) {
   const counts = {};
   data.forEach(row => {
-    const issue = row['Issue'] || 'Other';
-    counts[issue] = (counts[issue] || 0) + 1;
+    const key = row['Issue'] || 'Other';
+    counts[key] = (counts[key] || 0) + 1;
   });
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const labels = Object.keys(counts);
+  const values = Object.values(counts);
+  const total = values.reduce((a, b) => a + b, 0);
   const ctx = document.getElementById('issueChart').getContext('2d');
   if (window.barChart) barChart.destroy();
   barChart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: Object.keys(counts),
+      labels,
       datasets: [{
         label: 'Issue %',
-        data: Object.values(counts).map(v => ((v / total) * 100).toFixed(1)),
+        data: values.map(v => ((v / total) * 100).toFixed(1)),
         backgroundColor: '#007bff'
       }]
     },
@@ -381,7 +368,9 @@ function renderBarChart(data) {
           color: '#000'
         }
       },
-      scales: { y: { beginAtZero: true } }
+      scales: {
+        y: { beginAtZero: true }
+      }
     },
     plugins: [ChartDataLabels]
   });
@@ -391,7 +380,7 @@ function exportTableToCSV(filename) {
   const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
     Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
   );
-  const csv = rows.join("\n");  // ✅ FIXED
+  const csv = rows.join("\n");
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -410,8 +399,8 @@ function sortTable(tableId, colIdx) {
     return valB - valA;
   });
   const tbody = table.querySelector("tbody");
-  tbody.innerHTML = '';
-  rows.forEach(row => tbody.appendChild(row));
+  tbody.innerHTML = "";
+  rows.forEach(r => tbody.appendChild(r));
 }
 
 function addTableSorting() {
