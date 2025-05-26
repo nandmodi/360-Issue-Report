@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
   <meta charset="UTF-8" />
   <title>360 Issue Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,21 +9,15 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background-color: #f8f9fa;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; background-color: #f8f9fa; }
     .header-bar {
-      position: fixed; top: 0; left: 0; right: 0;
-      background: #fff; padding: 10px 0;
+      position: fixed; top: 0; left: 0; right: 0; background: #fff; padding: 10px 0;
       text-align: center; font-weight: bold; font-size: 22px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10000;
     }
     .filters {
-      position: fixed; top: 50px; left: 0; right: 0;
-      background: #f8f9fa; z-index: 9999;
-      padding: 10px 20px; display: flex; flex-wrap: wrap;
+      position: fixed; top: 50px; left: 0; right: 0; background: #f8f9fa;
+      z-index: 9999; padding: 10px 20px; display: flex; flex-wrap: wrap;
       gap: 10px; justify-content: center; border-bottom: 1px solid #ccc;
     }
     .filters select {
@@ -31,8 +25,7 @@
       border-radius: 4px; border: 1px solid #ccc;
     }
     .summary-bar {
-      position: fixed; top: 110px; left: 0; right: 0;
-      background: #e2e6ea; z-index: 9998;
+      position: fixed; top: 110px; left: 0; right: 0; background: #e2e6ea; z-index: 9998;
       padding: 10px 20px; display: flex; justify-content: space-between;
       font-weight: bold; border-top: 1px solid #ccc; border-bottom: 2px solid #ccc;
     }
@@ -132,9 +125,9 @@
       </div>
     </div>
   </div>
-
 <script>
 let globalData = [];
+let totalDataGlobal = [];
 
 async function loadAndRender() {
   const [qcData, totalData] = await Promise.all([
@@ -142,9 +135,7 @@ async function loadAndRender() {
     loadCSV('https://docs.google.com/spreadsheets/d/1EiI4vOQ4Fcq80YaOxosEqFZ49sftVBH-jbp4xARqfWM/gviz/tq?tqx=out:csv&sheet=All-Data')
   ]);
   globalData = qcData;
-  document.getElementById('markedSpin').textContent = new Set(qcData.map(r => r['Spin_id'])).size;
-  document.getElementById('receivedSpin').textContent = new Set(totalData.map(r => r['Spin_id'])).size;
-  populateFilters(qcData);
+  totalDataGlobal = totalData;
   applyFilters();
 }
 
@@ -160,17 +151,45 @@ function loadCSV(url) {
   );
 }
 
+function applyFilters() {
+  const filters = {
+    Month: document.getElementById('monthFilter').value,
+    Severity: document.getElementById('severityFilter').value,
+    Issue: document.getElementById('issueFilter').value,
+    Enterprise: document.getElementById('enterpriseFilter').value,
+    Product_Type: document.getElementById('productTypeFilter').value,
+    QC: document.getElementById('qcFilter').value
+  };
+
+  const matchFilters = (row) =>
+    (!filters.Month || row['Month'] === filters.Month) &&
+    (!filters.Severity || row['Severity'] === filters.Severity) &&
+    (!filters.Issue || row['Issue'] === filters.Issue) &&
+    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
+    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
+    (!filters.QC || row['QC'] === filters.QC);
+
+  const filteredMarked = globalData.filter(matchFilters);
+  const filteredReceived = totalDataGlobal.filter(matchFilters);
+
+  document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
+  document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
+
+  populateFilters(globalData);
+  renderIssueTable(filteredMarked);
+  renderEnterpriseIssueTable(filteredMarked);
+  renderSpinTable(filteredMarked);
+  renderPieChart(filteredMarked);
+  renderBarChart(filteredMarked);
+}
+
 function populateFilters(data) {
   const config = {
-    monthFilter: 'Month',
-    severityFilter: 'Severity',
-    issueFilter: 'Issue',
-    enterpriseFilter: 'Enterprise',
-    productTypeFilter: 'Product_Type',
-    qcFilter: 'QC'
+    monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
+    enterpriseFilter: 'Enterprise', productTypeFilter: 'Product_Type', qcFilter: 'QC'
   };
-  Object.entries(config).forEach(([filterId, key]) => {
-    const select = document.getElementById(filterId);
+  Object.entries(config).forEach(([id, key]) => {
+    const select = document.getElementById(id);
     const options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
     const defaultText = select.options[0].text;
     select.innerHTML = `<option value="">${defaultText}</option>` + options.map(v => `<option value="${v}">${v}</option>`).join('');
@@ -184,34 +203,6 @@ function resetFilters() {
   applyFilters();
 }
 
-function applyFilters() {
-  const filters = {
-    Month: document.getElementById('monthFilter').value,
-    Severity: document.getElementById('severityFilter').value,
-    Issue: document.getElementById('issueFilter').value,
-    Enterprise: document.getElementById('enterpriseFilter').value,
-    Product_Type: document.getElementById('productTypeFilter').value,
-    QC: document.getElementById('qcFilter').value
-  };
-
-  const filtered = globalData.filter(row =>
-    (!filters.Month || row['Month'] === filters.Month) &&
-    (!filters.Severity || row['Severity'] === filters.Severity) &&
-    (!filters.Issue || row['Issue'] === filters.Issue) &&
-    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
-    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
-    (!filters.QC || row['QC'] === filters.QC)
-  );
-
-  // ✅ Update total based on filtered
-  document.getElementById('markedSpin').textContent = new Set(filtered.map(r => r['Spin_id'])).size;
-
-  renderIssueTable(filtered);
-  renderEnterpriseIssueTable(filtered);
-  renderSpinTable(filtered);
-  renderPieChart(filtered);
-  renderBarChart(filtered);
-}
 function renderIssueTable(data) {
   const tbody = document.getElementById('issueSummary').querySelector('tbody');
   const issueMap = {};
@@ -336,7 +327,7 @@ function sortTable(header) {
   rows.sort((a, b) => {
     const getPercentage = (row) => {
       const text = row.children[index].textContent;
-      const match = text.match(/([\d.]+)%/); // Extract percentage
+      const match = text.match(/([\d.]+)%/);
       return match ? parseFloat(match[1]) : 0;
     };
     return descending ? getPercentage(b) - getPercentage(a) : getPercentage(a) - getPercentage(b);
@@ -349,7 +340,6 @@ function sortTable(header) {
     if (th !== header) th.classList.remove('desc');
   });
 }
-
 
 function exportTableToCSV(filename) {
   const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
@@ -367,11 +357,8 @@ function exportTableToCSV(filename) {
 
 window.onload = () => {
   loadAndRender().then(() => {
-    const blockerHeader = document.querySelector("#issueSummary thead tr th:nth-child(3)");
-    if (blockerHeader) sortTable(blockerHeader);
-
-    const entBlocker = document.querySelector("#enterpriseSummary thead tr th:nth-child(3)");
-    if (entBlocker) sortTable(entBlocker);
+    sortTable(document.querySelector("#issueSummary thead tr th:nth-child(3)"));
+    sortTable(document.querySelector("#enterpriseSummary thead tr th:nth-child(3)"));
   });
 };
 </script>
