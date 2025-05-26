@@ -33,6 +33,7 @@
     .clickable { color: blue; text-decoration: underline; cursor: pointer; }
     #lastUpdated { text-align: right; font-size: 14px; padding: 5px 20px; color: #666; }
     #noDataMessage { text-align: center; padding: 20px; display: none; color: red; font-weight: bold; }
+    #loadingProgress { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: bold; background: rgba(255,255,255,0.95); padding: 20px 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: none; z-index: 10002; }
   </style>
 </head>
 <body>
@@ -93,12 +94,18 @@
     </div>
     <div id="lastUpdated"></div>
     <div id="noDataMessage">No data found for selected filters.</div>
+    <div id="loadingProgress">Loading: <span id="progressPercent">0</span>%</div>
   </div>
   <script>
-    function manualLoad() {
+let globalData = [], pieChart, barChart, totalData = [];
+
+function manualLoad() {
   const qcFile = document.getElementById('qcFile').files[0];
   const totalFile = document.getElementById('totalFile').files[0];
   if (!qcFile || !totalFile) return alert("Please upload both QC and Total CSV files.");
+
+  document.getElementById('loadingProgress').style.display = 'block';
+  document.getElementById('progressPercent').textContent = '0';
 
   Promise.all([parseCSV(qcFile), parseCSV(totalFile)]).then(([qcData, total]) => {
     globalData = qcData;
@@ -108,14 +115,19 @@
     populateFilters(qcData);
     applyFilters();
     addTableSorting();
+    document.getElementById('loadingProgress').style.display = 'none';
   });
 }
-
-let globalData = [], pieChart, barChart, totalData = [];
 
 function parseCSV(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onprogress = function(e) {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        document.getElementById('progressPercent').textContent = percent;
+      }
+    };
     reader.onload = e => Papa.parse(e.target.result, {
       header: true, skipEmptyLines: true,
       complete: result => resolve(result.data),
@@ -170,7 +182,8 @@ function exportTableToCSV(filename) {
   const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
     Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
   );
-  const csv = rows.join("\n");
+  const csv = rows.join("
+");
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -306,6 +319,6 @@ function renderBarChart(data) {
     plugins: [ChartDataLabels]
   });
 }
-  </script>
+</script>
 </body>
 </html>
