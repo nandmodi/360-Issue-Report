@@ -182,8 +182,7 @@ function exportTableToCSV(filename) {
   const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
     Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
   );
-  const csv = rows.join("
-");
+  const csv = rows.join("\n");
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
