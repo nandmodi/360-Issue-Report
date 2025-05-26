@@ -52,6 +52,7 @@
     <select id="qcFilter"><option value="">QC</option></select>
     <button onclick="resetFilters()">Reset</button>
   </div>
+
   <div class="summary-bar">
     <div>Total Marked Spin: <span id="markedSpin">0</span></div>
     <div>
@@ -60,11 +61,13 @@
     </div>
     <div>Total Received Spin: <span id="receivedSpin">0</span></div>
   </div>
+
   <div class="main-content">
     <div class="chart-row">
       <div class="chart-box issue"><canvas id="issueChart"></canvas></div>
       <div class="chart-box pie"><canvas id="severityPie"></canvas></div>
     </div>
+
     <div class="summary-tables">
       <div class="half-width-box">
         <h3>Issue % by Issue</h3>
@@ -81,6 +84,7 @@
         </table>
       </div>
     </div>
+
     <div class="bottom-row">
       <div class="table-box">
         <table id="spinTable">
@@ -92,11 +96,12 @@
         <iframe id="spinIframe" title="Spin Preview"></iframe>
       </div>
     </div>
+
     <div id="lastUpdated"></div>
     <div id="noDataMessage">No data found for selected filters.</div>
     <div id="loadingProgress">Loading: <span id="progressPercent">0</span>%</div>
   </div>
-  <script>
+<script>
 let globalData = [], pieChart, barChart, totalData = [];
 
 function manualLoad() {
@@ -116,6 +121,9 @@ function manualLoad() {
     applyFilters();
     addTableSorting();
     document.getElementById('loadingProgress').style.display = 'none';
+  }).catch(err => {
+    alert("Error loading file: " + err.message);
+    document.getElementById('loadingProgress').style.display = 'none';
   });
 }
 
@@ -128,11 +136,18 @@ function parseCSV(file) {
         document.getElementById('progressPercent').textContent = percent;
       }
     };
-    reader.onload = e => Papa.parse(e.target.result, {
-      header: true, skipEmptyLines: true,
-      complete: result => resolve(result.data),
-      error: reject
-    });
+    reader.onload = e => {
+      try {
+        Papa.parse(e.target.result, {
+          header: true,
+          skipEmptyLines: true,
+          complete: result => resolve(result.data),
+          error: reject
+        });
+      } catch (err) {
+        reject(err);
+      }
+    };
     reader.readAsText(file);
   });
 }
@@ -178,20 +193,6 @@ function applyFilters() {
   renderBarChart(filtered);
 }
 
-function exportTableToCSV(filename) {
-  const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
-    Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
-  );
-  const csv = rows.join("\\n");
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function addTableSorting() {
   ['issueSummary', 'enterpriseSummary'].forEach(id => {
     const ths = document.querySelectorAll(`#${id} thead th`);
@@ -215,6 +216,20 @@ function sortTable(tableId, colIdx) {
   const tbody = table.querySelector("tbody");
   tbody.innerHTML = "";
   rows.forEach(r => tbody.appendChild(r));
+}
+
+function exportTableToCSV(filename) {
+  const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
+    Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
+  );
+  const csv = rows.join("\n");
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderIssueTable(data) {
