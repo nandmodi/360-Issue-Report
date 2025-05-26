@@ -193,6 +193,7 @@ function applyFilters() {
     Product_Type: document.getElementById('productTypeFilter').value,
     QC: document.getElementById('qcFilter').value
   };
+
   const filtered = globalData.filter(row =>
     (!filters.Month || row['Month'] === filters.Month) &&
     (!filters.Severity || row['Severity'] === filters.Severity) &&
@@ -201,6 +202,10 @@ function applyFilters() {
     (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
     (!filters.QC || row['QC'] === filters.QC)
   );
+
+  // ✅ Update total based on filtered
+  document.getElementById('markedSpin').textContent = new Set(filtered.map(r => r['Spin_id'])).size;
+
   renderIssueTable(filtered);
   renderEnterpriseIssueTable(filtered);
   renderSpinTable(filtered);
