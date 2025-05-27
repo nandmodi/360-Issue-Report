@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
   <meta charset="UTF-8" />
   <title>360 Issue Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -62,7 +62,7 @@
     <select id="severityFilter" data-label="Severity"><option value="">Severity</option></select>
     <select id="issueFilter" data-label="Issue"><option value="">Issue</option></select>
     <select id="enterpriseFilter" data-label="Enterprise"><option value="">Enterprise</option></select>
-    <select id="productTypeFilter" data-label="Product Type"><option value="">Product Type</option></select>
+    <select id="productTypeFilter" data-label="Product_Type"><option value="">Product Type</option></select>
     <select id="qcFilter" data-label="QC"><option value="">QC</option></select>
     <button onclick="resetFilters()" style="margin-left: 10px; padding: 5px 10px;">Reset</button>
   </div>
@@ -141,7 +141,11 @@ async function loadAndRender() {
 function loadCSV(url) {
   return fetch(url).then(res => res.text()).then(text =>
     new Promise(resolve => {
-      Papa.parse(text, { header: true, skipEmptyLines: true, complete: r => resolve(r.data) });
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: results => resolve(results.data)
+      });
     })
   );
 }
@@ -206,6 +210,86 @@ function applyFilters() {
   renderBarChart(filteredMarked);
 }
 
+function renderIssueTable(data) {
+  const tbody = document.getElementById('issueSummary').querySelector('tbody');
+  const issueMap = {};
+  data.forEach(row => {
+    const issue = row['Issue'] || 'Other';
+    const sev = row['Severity'] || 'Low';
+    if (!issueMap[issue]) issueMap[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+    issueMap[issue][sev]++;
+    issueMap[issue].Total++;
+  });
+  const total = data.length;
+  tbody.innerHTML = '';
+  Object.entries(issueMap).forEach(([issue, stats]) => {
+    tbody.innerHTML += `<tr><td>${issue}</td>
+      <td><b>${((stats.Total / total) * 100).toFixed(1)}%</b> (${stats.Total})</td>
+      <td><b>${((stats.Blocker / stats.Total) * 100).toFixed(1)}%</b> (${stats.Blocker})</td>
+      <td><b>${((stats.High / stats.Total) * 100).toFixed(1)}%</b> (${stats.High})</td>
+      <td><b>${((stats.Low / stats.Total) * 100).toFixed(1)}%</b> (${stats.Low})</td></tr>`;
+  });
+}
+
+function renderEnterpriseIssueTable(data) {
+  const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
+  const entMap = {};
+  data.forEach(row => {
+    const ent = row['Enterprise'] || 'Unknown';
+    const sev = row['Severity'] || 'Low';
+    if (!entMap[ent]) entMap[ent] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+    entMap[ent][sev]++;
+    entMap[ent].Total++;
+  });
+  const total = data.length;
+  tbody.innerHTML = '';
+  Object.entries(entMap).forEach(([ent, stats]) => {
+    tbody.innerHTML += `<tr><td>${ent}</td>
+      <td><b>${((stats.Total / total) * 100).toFixed(1)}%</b> (${stats.Total})</td>
+      <td><b>${((stats.Blocker / stats.Total) * 100).toFixed(1)}%</b> (${stats.Blocker})</td>
+      <td><b>${((stats.High / stats.Total) * 100).toFixed(1)}%</b> (${stats.High})</td>
+      <td><b>${((stats.Low / stats.Total) * 100).toFixed(1)}%</b> (${stats.Low})</td></tr>`;
+  });
+}
+
+function renderSpinTable(data) {
+  const tbody = document.getElementById('spinTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || ''}'">${row['Spin_id']}</td>
+      <td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderPieChart(data) {
+  const sevCount = { Blocker: 0, High: 0, Low: 0 };
+  data.forEach(row => {
+    sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1;
+  });
+  const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
+  const ctx = document.getElementById('severityPie').getContext('2d');
+  if (window.pieChart) window.pieChart.destroy();
+  window.pieChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: Object.keys(sevCount),
+      datasets: [{ data: Object.values(sevCount), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
+    },
+    options: {
+      plugins: {
+        legend: { position: 'right' },
+        datalabels: {
+          formatter: value => `${((value / total) * 100).toFixed(1)}%`,
+          color: '#000'
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
+}
+
 function getColor(index) {
   const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8'];
   return colors[index % colors.length];
@@ -255,6 +339,37 @@ function renderBarChart(data) {
     plugins: [ChartDataLabels]
   });
 }
+
+function sortTable(header) {
+  const table = header.closest('table');
+  const tbody = table.querySelector('tbody');
+  const index = Array.from(header.parentNode.children).indexOf(header);
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const desc = header.classList.toggle('desc');
+  rows.sort((a, b) => {
+    const getVal = row => parseFloat((row.children[index].textContent.match(/([\d.]+)%/) || [])[1] || 0);
+    return desc ? getVal(b) - getVal(a) : getVal(a) - getVal(b);
+  });
+  tbody.innerHTML = ''; rows.forEach(r => tbody.appendChild(r));
+  Array.from(header.parentNode.children).forEach(th => { if (th !== header) th.classList.remove('desc'); });
+}
+
+function exportTableToCSV(filename) {
+  const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
+    Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
+  );
+  const blob = new Blob([rows.join("\n")], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+window.onload = () => {
+  loadAndRender().then(() => {
+    sortTable(document.querySelector("#issueSummary thead th:nth-child(3)"));
+    sortTable(document.querySelector("#enterpriseSummary thead th:nth-child(3)"));
+  });
+};
 </script>
 </body>
 </html>
