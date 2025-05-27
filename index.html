@@ -176,7 +176,41 @@ function exportTableToCSV(filename) {
   const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
+function applyFilters() {
+  const filters = {
+    Month: monthFilter.value,
+    Severity: severityFilter.value,
+    Issue: issueFilter.value,
+    Enterprise: enterpriseFilter.value,
+    Product_Type: productTypeFilter.value,
+    QC: qcFilter.value
+  };
 
+  const filteredMarked = globalData.filter(r =>
+    (!filters.Month || r.Month === filters.Month) &&
+    (!filters.Severity || r.Severity === filters.Severity) &&
+    (!filters.Issue || r.Issue === filters.Issue) &&
+    (!filters.Enterprise || r.Enterprise === filters.Enterprise) &&
+    (!filters.Product_Type || r.Product_Type === filters.Product_Type) &&
+    (!filters.QC || r.QC === filters.QC)
+  );
+
+  const filteredReceived = totalDataGlobal.filter(r =>
+    (!filters.Month || r.Month === filters.Month) &&
+    (!filters.Enterprise || r.Enterprise === filters.Enterprise) &&
+    (!filters.Product_Type || r.Product_Type === filters.Product_Type) &&
+    (!filters.QC || r.QC === filters.QC)
+  );
+
+  document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r.Spin_id)).size;
+  document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r.Spin_id)).size;
+
+  renderBarChart(filteredMarked);
+  renderPieChart(filteredMarked);
+  renderIssueTable(filteredMarked);
+  renderEnterpriseIssueTable(filteredMarked);
+  renderSpinTable(filteredMarked);
+}
 window.onload = () => loadAndRender();
 </script>
 </body>
