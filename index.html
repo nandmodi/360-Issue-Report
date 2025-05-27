@@ -126,8 +126,7 @@
     </div>
   </div>
 <script>
-let globalData = [];
-let totalDataGlobal = [];
+let globalData = [], totalDataGlobal = [];
 
 async function loadAndRender() {
   const [qcData, totalData] = await Promise.all([
@@ -142,11 +141,7 @@ async function loadAndRender() {
 function loadCSV(url) {
   return fetch(url).then(res => res.text()).then(text =>
     new Promise(resolve => {
-      Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        complete: results => resolve(results.data)
-      });
+      Papa.parse(text, { header: true, skipEmptyLines: true, complete: r => resolve(r.data) });
     })
   );
 }
@@ -167,6 +162,12 @@ function populateFilters(data) {
   });
 }
 
+function resetFilters() {
+  ['monthFilter','severityFilter','issueFilter','enterpriseFilter','productTypeFilter','qcFilter']
+    .forEach(id => document.getElementById(id).selectedIndex = 0);
+  applyFilters();
+}
+
 function applyFilters() {
   const filters = {
     Month: document.getElementById('monthFilter').value,
@@ -177,7 +178,6 @@ function applyFilters() {
     QC: document.getElementById('qcFilter').value
   };
 
-  // Full filters for Marked Spins
   const markedMatch = row =>
     (!filters.Month || row['Month'] === filters.Month) &&
     (!filters.Severity || row['Severity'] === filters.Severity) &&
@@ -186,7 +186,6 @@ function applyFilters() {
     (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
     (!filters.QC || row['QC'] === filters.QC);
 
-  // Partial filters for Received Spins
   const receivedMatch = row =>
     (!filters.Month || row['Month'] === filters.Month) &&
     (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
@@ -207,135 +206,55 @@ function applyFilters() {
   renderBarChart(filteredMarked);
 }
 
-
-function renderIssueTable(data) {
-  const tbody = document.getElementById('issueSummary').querySelector('tbody');
-  const map = {};
-  data.forEach(row => {
-    const issue = row['Issue'] || 'Other';
-    const sev = row['Severity'] || 'Low';
-    if (!map[issue]) map[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-    map[issue][sev]++; map[issue].Total++;
-  });
-  tbody.innerHTML = '';
-  const total = data.length;
-  Object.entries(map).forEach(([issue, s]) => {
-    tbody.innerHTML += `<tr><td>${issue}</td>
-      <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
-      <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
-      <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
-      <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
-  });
+function getColor(index) {
+  const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8'];
+  return colors[index % colors.length];
 }
 
-function renderEnterpriseIssueTable(data) {
-  const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
-  const map = {};
-  data.forEach(row => {
-    const ent = row['Enterprise'] || 'Unknown';
-    const sev = row['Severity'] || 'Low';
-    if (!map[ent]) map[ent] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-    map[ent][sev]++; map[ent].Total++;
-  });
-  tbody.innerHTML = '';
-  const total = data.length;
-  Object.entries(map).forEach(([ent, s]) => {
-    tbody.innerHTML += `<tr><td>${ent}</td>
-      <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
-      <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
-      <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
-      <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
-  });
-}
+function renderBarChart(data) {
+  const productTypes = [...new Set(data.map(r => r['Product_Type']).filter(Boolean))];
+  const issueSet = [...new Set(data.map(r => r['Issue'] || 'Other'))];
 
-function renderSpinTable(data) {
-  const tbody = document.getElementById('spinTable').querySelector('tbody');
-  tbody.innerHTML = '';
-  data.forEach(row => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin']}'">${row['Spin_id']}</td>
-      <td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
-    tbody.appendChild(tr);
+  const productIssueMap = {};
+  productTypes.forEach(pt => {
+    productIssueMap[pt] = issueSet.map(issue =>
+      data.filter(r => (r['Issue'] || 'Other') === issue && r['Product_Type'] === pt).length
+    );
   });
-}
 
-function renderPieChart(data) {
-  const sevCount = { Blocker: 0, High: 0, Low: 0 };
-  data.forEach(row => sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1);
-  const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
-  const ctx = document.getElementById('severityPie').getContext('2d');
-  if (window.pieChart) window.pieChart.destroy();
-  window.pieChart = new Chart(ctx, {
-    type: 'pie',
-    data: { labels: Object.keys(sevCount), datasets: [{ data: Object.values(sevCount), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }] },
+  const issueTotals = issueSet.map((_, i) =>
+    productTypes.reduce((sum, pt) => sum + productIssueMap[pt][i], 0)
+  );
+
+  const datasets = productTypes.map((pt, idx) => ({
+    label: pt,
+    data: productIssueMap[pt].map((count, i) => issueTotals[i] ? ((count / issueTotals[i]) * 100).toFixed(2) : 0),
+    backgroundColor: getColor(idx)
+  }));
+
+  const ctx = document.getElementById('issueChart').getContext('2d');
+  if (window.barChart) window.barChart.destroy();
+  window.barChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: issueSet, datasets },
     options: {
+      responsive: true,
       plugins: {
-        legend: { position: 'right' },
+        tooltip: { mode: 'index', intersect: false },
+        legend: { position: 'bottom' },
         datalabels: {
-          formatter: value => `${((value / total) * 100).toFixed(1)}%`,
+          formatter: v => `${parseFloat(v).toFixed(1)}%`,
           color: '#000'
         }
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, beginAtZero: true, max: 100, title: { display: true, text: '%' } }
       }
     },
     plugins: [ChartDataLabels]
   });
 }
-
-function renderBarChart(data) {
-  const issueCounts = {};
-  data.forEach(row => {
-    const issue = row['Issue'] || 'Other';
-    issueCounts[issue] = (issueCounts[issue] || 0) + 1;
-  });
-  const total = Object.values(issueCounts).reduce((a, b) => a + b, 0);
-  const ctx = document.getElementById('issueChart').getContext('2d');
-  if (window.barChart) window.barChart.destroy();
-  window.barChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: Object.keys(issueCounts),
-      datasets: [{ label: 'Issue %', data: Object.values(issueCounts).map(v => ((v / total) * 100).toFixed(1)), backgroundColor: '#007bff' }]
-    },
-    options: {
-      plugins: {
-        datalabels: { anchor: 'end', align: 'end', formatter: v => `${v}%`, color: '#000' }
-      },
-      scales: { y: { beginAtZero: true } }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-function sortTable(header) {
-  const table = header.closest('table');
-  const tbody = table.querySelector('tbody');
-  const index = Array.from(header.parentNode.children).indexOf(header);
-  const rows = Array.from(tbody.querySelectorAll('tr'));
-  const desc = header.classList.toggle('desc');
-  rows.sort((a, b) => {
-    const getVal = row => parseFloat((row.children[index].textContent.match(/([\d.]+)%/) || [])[1] || 0);
-    return desc ? getVal(b) - getVal(a) : getVal(a) - getVal(b);
-  });
-  tbody.innerHTML = ''; rows.forEach(r => tbody.appendChild(r));
-  Array.from(header.parentNode.children).forEach(th => th !== header && th.classList.remove('desc'));
-}
-
-function exportTableToCSV(filename) {
-  const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
-    Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
-  );
-  const blob = new Blob([rows.join("\n")], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
-window.onload = () => {
-  loadAndRender().then(() => {
-    sortTable(document.querySelector("#issueSummary thead th:nth-child(3)"));
-    sortTable(document.querySelector("#enterpriseSummary thead th:nth-child(3)"));
-  });
-};
 </script>
 </body>
 </html>
