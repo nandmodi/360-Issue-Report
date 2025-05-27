@@ -167,12 +167,6 @@ function populateFilters(data) {
   });
 }
 
-function resetFilters() {
-  ['monthFilter','severityFilter','issueFilter','enterpriseFilter','productTypeFilter','qcFilter']
-    .forEach(id => document.getElementById(id).selectedIndex = 0);
-  applyFilters();
-}
-
 function applyFilters() {
   const filters = {
     Month: document.getElementById('monthFilter').value,
@@ -183,7 +177,8 @@ function applyFilters() {
     QC: document.getElementById('qcFilter').value
   };
 
-  const match = row =>
+  // Full filters for Marked Spins
+  const markedMatch = row =>
     (!filters.Month || row['Month'] === filters.Month) &&
     (!filters.Severity || row['Severity'] === filters.Severity) &&
     (!filters.Issue || row['Issue'] === filters.Issue) &&
@@ -191,8 +186,15 @@ function applyFilters() {
     (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
     (!filters.QC || row['QC'] === filters.QC);
 
-  const filteredMarked = globalData.filter(match);
-  const filteredReceived = totalDataGlobal.filter(match);
+  // Partial filters for Received Spins
+  const receivedMatch = row =>
+    (!filters.Month || row['Month'] === filters.Month) &&
+    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
+    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
+    (!filters.QC || row['QC'] === filters.QC);
+
+  const filteredMarked = globalData.filter(markedMatch);
+  const filteredReceived = totalDataGlobal.filter(receivedMatch);
 
   document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
   document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
@@ -204,6 +206,7 @@ function applyFilters() {
   renderPieChart(filteredMarked);
   renderBarChart(filteredMarked);
 }
+
 
 function renderIssueTable(data) {
   const tbody = document.getElementById('issueSummary').querySelector('tbody');
