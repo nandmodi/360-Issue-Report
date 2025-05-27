@@ -1,33 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>360 Issue Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; background-color: #f8f9fa; }
+    body { font-family: Arial, sans-serif; margin: 0; background: #f8f9fa; }
     .header-bar {
-      position: fixed; top: 0; left: 0; right: 0; background: #fff; padding: 10px 0;
-      text-align: center; font-weight: bold; font-size: 22px;
+      position: fixed; top: 0; left: 0; right: 0; background: #fff;
+      padding: 10px; text-align: center; font-weight: bold; font-size: 22px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10000;
     }
     .filters {
-      position: fixed; top: 50px; left: 0; right: 0; background: #f8f9fa;
-      z-index: 9999; padding: 10px 20px; display: flex; flex-wrap: wrap;
+      position: fixed; top: 50px; left: 0; right: 0; z-index: 9999;
+      background: #f8f9fa; padding: 10px; display: flex;
       gap: 10px; justify-content: center; border-bottom: 1px solid #ccc;
     }
-    .filters select {
-      padding: 6px 10px; font-size: 14px;
-      border-radius: 4px; border: 1px solid #ccc;
-    }
+    .filters select { padding: 6px 10px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; }
     .summary-bar {
-      position: fixed; top: 110px; left: 0; right: 0; background: #e2e6ea; z-index: 9998;
-      padding: 10px 20px; display: flex; justify-content: space-between;
-      font-weight: bold; border-top: 1px solid #ccc; border-bottom: 2px solid #ccc;
+      position: fixed; top: 110px; left: 0; right: 0; z-index: 9998;
+      background: #e2e6ea; padding: 10px 20px; display: flex;
+      justify-content: space-between; font-weight: bold;
     }
     .main-content { margin-top: 180px; padding: 0 20px; }
     .chart-row {
@@ -37,6 +34,7 @@
       flex: 1; background: #fff; padding: 20px; border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
+    canvas { height: 300px !important; }
   </style>
 </head>
 <body>
@@ -48,13 +46,13 @@
     <select id="enterpriseFilter" data-label="Enterprise"><option value="">Enterprise</option></select>
     <select id="productTypeFilter" data-label="Product_Type"><option value="">Product Type</option></select>
     <select id="qcFilter" data-label="QC"><option value="">QC</option></select>
-    <button onclick="resetFilters()" style="margin-left: 10px; padding: 5px 10px;">Reset</button>
+    <button onclick="resetFilters()" style="padding: 5px 10px;">Reset</button>
   </div>
   <div class="summary-bar">
     <div>Total Marked Spin: <span id="markedSpin">0</span></div>
     <div>
-      <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">🔄</button>
-      <button onclick="exportTableToCSV('spin-data.csv')" title="Export CSV" style="background:none;border:none;cursor:pointer;font-size:18px;">📤</button>
+      <button onclick="loadAndRender()" title="Refresh">🔄</button>
+      <button onclick="exportTableToCSV('spin-data.csv')" title="Export CSV">📤</button>
     </div>
     <div>Total Received Spin: <span id="receivedSpin">0</span></div>
   </div>
@@ -63,49 +61,34 @@
       <div class="chart-box issue"><canvas id="issueChart"></canvas></div>
       <div class="chart-box pie"><canvas id="severityPie"></canvas></div>
     </div>
-    <div class="dual-table-row">
-      <div class="full-width-table">
+    <div class="dual-table-row" style="display: flex; gap: 20px;">
+      <div class="full-width-table" style="flex: 1; background: #fff; padding: 10px; border-radius: 10px;">
         <h3>Issue</h3>
         <table id="issueSummary">
           <thead>
-            <tr>
-              <th>Issue</th>
-              <th onclick="sortTable(this)">Total</th>
-              <th onclick="sortTable(this)">Blocker</th>
-              <th onclick="sortTable(this)">High</th>
-              <th onclick="sortTable(this)">Low</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
+            <tr><th>Issue</th><th>Total</th><th>Blocker</th><th>High</th><th>Low</th></tr>
+          </thead><tbody></tbody>
         </table>
       </div>
-      <div class="full-width-table">
+      <div class="full-width-table" style="flex: 1; background: #fff; padding: 10px; border-radius: 10px;">
         <h3>Enterprise</h3>
         <table id="enterpriseSummary">
           <thead>
-            <tr>
-              <th>Enterprise</th>
-              <th onclick="sortTable(this)">Total</th>
-              <th onclick="sortTable(this)">Blocker</th>
-              <th onclick="sortTable(this)">High</th>
-              <th onclick="sortTable(this)">Low</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
+            <tr><th>Enterprise</th><th>Total</th><th>Blocker</th><th>High</th><th>Low</th></tr>
+          </thead><tbody></tbody>
         </table>
       </div>
     </div>
 
-    <div class="bottom-row">
-      <div class="table-box">
+    <div class="bottom-row" style="display: flex; gap: 20px;">
+      <div class="table-box" style="flex: 1;">
         <table id="spinTable">
           <thead>
             <tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr>
-          </thead>
-          <tbody></tbody>
+          </thead><tbody></tbody>
         </table>
       </div>
-      <div class="iframe-box">
+      <div class="iframe-box" style="flex: 1;">
         <iframe id="spinIframe" title="Spin Preview"></iframe>
       </div>
     </div>
@@ -116,12 +99,17 @@ let globalData = [], totalDataGlobal = [];
 function loadCSV(url) {
   return fetch(url).then(res => res.text()).then(text =>
     new Promise(resolve => {
-      Papa.parse(text, {
-        header: true, skipEmptyLines: true,
-        complete: results => resolve(results.data)
-      });
+      Papa.parse(text, { header: true, skipEmptyLines: true, complete: r => resolve(r.data) });
     })
   );
+}
+
+function debounce(fn, delay) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn(...args), delay);
+  };
 }
 
 async function loadAndRender() {
@@ -129,14 +117,54 @@ async function loadAndRender() {
     loadCSV('https://docs.google.com/spreadsheets/d/1JlcXL8X1VRxlRVGyTuLElsm9IgOiteT6amOEXrEx-jY/gviz/tq?tqx=out:csv&sheet=Data'),
     loadCSV('https://docs.google.com/spreadsheets/d/1EiI4vOQ4Fcq80YaOxosEqFZ49sftVBH-jbp4xARqfWM/gviz/tq?tqx=out:csv&sheet=All-Data')
   ]);
-  globalData = qcData;
-  totalDataGlobal = totalData;
+  globalData = qcData.map(row => ({
+    ...row,
+    Product_Type: row['Product_Type'] || row['Product Type'],
+    Month: row['Month'] || row['month'],
+  }));
+  totalDataGlobal = totalData.map(row => ({
+    ...row,
+    Product_Type: row['Product_Type'] || row['Product Type'],
+    Month: row['Month'] || row['month'],
+  }));
   applyFilters();
 }
-
 function getColor(index) {
   const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8'];
   return colors[index % colors.length];
+}
+
+function renderBarChart(data) {
+  const types = [...new Set(data.map(r => r.Product_Type).filter(Boolean))];
+  const issues = [...new Set(data.map(r => r.Issue || 'Other'))];
+  const map = {};
+  types.forEach(pt => {
+    map[pt] = issues.map(issue => data.filter(r => (r.Issue || 'Other') === issue && r.Product_Type === pt).length);
+  });
+  const totals = issues.map((_, i) => types.reduce((sum, pt) => sum + map[pt][i], 0));
+  const datasets = types.map((pt, i) => ({
+    label: pt,
+    data: map[pt].map((count, j) => totals[j] ? ((count / totals[j]) * 100).toFixed(2) : 0),
+    backgroundColor: getColor(i)
+  }));
+  const ctx = document.getElementById('issueChart').getContext('2d');
+  if (window.barChart) window.barChart.destroy();
+  window.barChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: issues, datasets },
+    options: {
+      animation: false, responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        datalabels: { color: '#000', formatter: v => `${parseFloat(v).toFixed(1)}%` }
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, beginAtZero: true, max: 100 }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
 }
 
 function exportTableToCSV(filename) {
@@ -148,85 +176,8 @@ function exportTableToCSV(filename) {
   const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
-function populateFilters(data) {
-  const config = {
-    monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
-    enterpriseFilter: 'Enterprise', productTypeFilter: 'Product_Type', qcFilter: 'QC'
-  };
-  Object.entries(config).forEach(([id, key]) => {
-    const select = document.getElementById(id);
-    const selected = select.value;
-    const defaultText = select.getAttribute('data-label') || key;
-    const options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
-    select.innerHTML = `<option value=\"\">${defaultText}</option>` +
-      options.map(v => `<option value=\"${v}\" ${v === selected ? 'selected' : ''}>${v}</option>`).join('');
-    select.onchange = applyFilters;
-  });
-}
 
-function resetFilters() {
-  ['monthFilter','severityFilter','issueFilter','enterpriseFilter','productTypeFilter','qcFilter']
-    .forEach(id => document.getElementById(id).selectedIndex = 0);
-  applyFilters();
-}
-
-function applyFilters() {
-  const filters = {
-    Month: monthFilter.value, Severity: severityFilter.value, Issue: issueFilter.value,
-    Enterprise: enterpriseFilter.value, Product_Type: productTypeFilter.value, QC: qcFilter.value
-  };
-  const marked = globalData.filter(r =>
-    (!filters.Month || r.Month === filters.Month) &&
-    (!filters.Severity || r.Severity === filters.Severity) &&
-    (!filters.Issue || r.Issue === filters.Issue) &&
-    (!filters.Enterprise || r.Enterprise === filters.Enterprise) &&
-    (!filters.Product_Type || r.Product_Type === filters.Product_Type) &&
-    (!filters.QC || r.QC === filters.QC)
-  );
-  const received = totalDataGlobal.filter(r =>
-    (!filters.Month || r.Month === filters.Month) &&
-    (!filters.Enterprise || r.Enterprise === filters.Enterprise) &&
-    (!filters.Product_Type || r.Product_Type === filters.Product_Type) &&
-    (!filters.QC || r.QC === filters.QC)
-  );
-  markedSpin.textContent = new Set(marked.map(r => r.Spin_id)).size;
-  receivedSpin.textContent = new Set(received.map(r => r.Spin_id)).size;
-
-  populateFilters(globalData);
-  renderIssueTable(marked);
-  renderEnterpriseIssueTable(marked);
-  renderSpinTable(marked);
-  renderPieChart(marked);
-  renderBarChart(marked);
-}
-
-function renderPieChart(data) {
-  const sevCount = { Blocker: 0, High: 0, Low: 0 };
-  data.forEach(r => sevCount[r.Severity] = (sevCount[r.Severity] || 0) + 1);
-  const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
-  const ctx = document.getElementById('severityPie').getContext('2d');
-  if (window.pieChart) window.pieChart.destroy();
-  window.pieChart = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: Object.keys(sevCount),
-      datasets: [{ data: Object.values(sevCount), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
-    },
-    options: {
-      animation: false,
-      plugins: {
-        legend: { position: 'right' },
-        datalabels: {
-          formatter: v => `${((v / total) * 100).toFixed(1)}%`,
-          color: '#000'
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-window.onload = loadAndRender;
+window.onload = () => loadAndRender();
 </script>
 </body>
 </html>
