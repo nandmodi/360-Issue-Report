@@ -235,16 +235,18 @@ function renderIssueTable(data) {
 function renderEnterpriseIssueTable(markedData, receivedData) {
   const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
   const enterpriseTotals = {};
-  const issueSpinSet = {}; // Unique Spin IDs with issues per enterprise
-  const sevMap = {}; // Per enterprise -> { Blocker: Set, High: Set, Low: Set }
+  const issueSpinSet = {};
+  const sevMap = {};
 
-  // Total received spins per enterprise
+  // Count unique spins per enterprise from received data
   receivedData.forEach(row => {
     const ent = row['Enterprise'] || 'Unknown';
-    enterpriseTotals[ent] = (enterpriseTotals[ent] || new Set()).add(row['Spin_id']);
+    const spinId = row['Spin_id'];
+    if (!enterpriseTotals[ent]) enterpriseTotals[ent] = new Set();
+    enterpriseTotals[ent].add(spinId);
   });
 
-  // Marked spins per enterprise - unique count + severity sets
+  // Count unique spins with issues and severity
   markedData.forEach(row => {
     const ent = row['Enterprise'] || 'Unknown';
     const sev = row['Severity'] || 'Low';
@@ -261,15 +263,16 @@ function renderEnterpriseIssueTable(markedData, receivedData) {
 
   tbody.innerHTML = '';
   Object.keys(issueSpinSet).forEach(ent => {
-    const totalSpins = enterpriseTotals[ent]?.size || 0;
+    const totalSpins = enterpriseTotals[ent] ? enterpriseTotals[ent].size : 0;
     const issueSpins = issueSpinSet[ent].size;
-
     const b = sevMap[ent].Blocker.size;
     const h = sevMap[ent].High.size;
     const l = sevMap[ent].Low.size;
 
+    const issuePercent = totalSpins > 0 ? ((issueSpins / totalSpins) * 100).toFixed(1) : '0.0';
+
     tbody.innerHTML += `<tr><td>${ent}</td>
-      <td><b>${((issueSpins / totalSpins) * 100).toFixed(1)}%</b> (${issueSpins})</td>
+      <td><b>${issuePercent}%</b> (${issueSpins})</td>
       <td><b>${((b / issueSpins) * 100).toFixed(1)}%</b> (${b})</td>
       <td><b>${((h / issueSpins) * 100).toFixed(1)}%</b> (${h})</td>
       <td><b>${((l / issueSpins) * 100).toFixed(1)}%</b> (${l})</td></tr>`;
@@ -294,7 +297,6 @@ function renderPieChart(data) {
     const spinId = row['Spin_id'];
     if (sevCount[sev]) sevCount[sev].add(spinId);
   });
-
   const counts = Object.fromEntries(Object.entries(sevCount).map(([k, v]) => [k, v.size]));
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const ctx = document.getElementById('severityPie').getContext('2d');
@@ -377,7 +379,10 @@ function exportTableToCSV(filename) {
   );
   const blob = new Blob([rows.join("\n")], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
   URL.revokeObjectURL(url);
 }
 
