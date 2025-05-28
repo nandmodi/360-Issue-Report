@@ -198,7 +198,7 @@ function applyFilters() {
 
   populateFilters(globalData);
   renderIssueTable(filteredMarked);
-  renderEnterpriseIssueTable(filteredMarked, totalDataGlobal);
+  renderEnterpriseIssueTable(filteredMarked, filteredReceived);
   renderSpinTable(filteredMarked);
   renderPieChart(filteredMarked);
   renderBarChart(filteredMarked);
@@ -206,16 +206,23 @@ function applyFilters() {
 
 function renderIssueTable(data) {
   const tbody = document.getElementById('issueSummary').querySelector('tbody');
-  const map = {};
+  const issueMap = {};
+  const seen = new Set();
+
   data.forEach(row => {
+    const spinId = row['Spin_id'];
+    if (seen.has(spinId)) return;
+    seen.add(spinId);
     const issue = row['Issue'] || 'Other';
     const sev = row['Severity'] || 'Low';
-    if (!map[issue]) map[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-    map[issue][sev]++; map[issue].Total++;
+    if (!issueMap[issue]) issueMap[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+    issueMap[issue][sev]++;
+    issueMap[issue].Total++;
   });
+
+  const total = seen.size;
   tbody.innerHTML = '';
-  const total = data.length;
-  Object.entries(map).forEach(([issue, s]) => {
+  Object.entries(issueMap).forEach(([issue, s]) => {
     tbody.innerHTML += `<tr><td>${issue}</td>
       <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
       <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
@@ -225,33 +232,47 @@ function renderIssueTable(data) {
 }
 </script>
 <script>
-function renderEnterpriseIssueTable(data, totalData) {
+function renderEnterpriseIssueTable(markedData, receivedData) {
   const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
-  const map = {};
   const enterpriseTotals = {};
+  const issueSpinSet = {}; // Unique Spin IDs with issues per enterprise
+  const sevMap = {}; // Per enterprise -> { Blocker: Set, High: Set, Low: Set }
 
-  // Count severity issues per enterprise
-  data.forEach(row => {
+  // Total received spins per enterprise
+  receivedData.forEach(row => {
     const ent = row['Enterprise'] || 'Unknown';
-    const sev = row['Severity'] || 'Low';
-    if (!map[ent]) map[ent] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-    map[ent][sev]++; map[ent].Total++;
+    enterpriseTotals[ent] = (enterpriseTotals[ent] || new Set()).add(row['Spin_id']);
   });
 
-  // Count total received spins per enterprise
-  totalData.forEach(row => {
+  // Marked spins per enterprise - unique count + severity sets
+  markedData.forEach(row => {
     const ent = row['Enterprise'] || 'Unknown';
-    enterpriseTotals[ent] = (enterpriseTotals[ent] || 0) + 1;
+    const sev = row['Severity'] || 'Low';
+    const spinId = row['Spin_id'];
+
+    if (!issueSpinSet[ent]) issueSpinSet[ent] = new Set();
+    issueSpinSet[ent].add(spinId);
+
+    if (!sevMap[ent]) sevMap[ent] = { Blocker: new Set(), High: new Set(), Low: new Set() };
+    if (sev === 'Blocker') sevMap[ent].Blocker.add(spinId);
+    else if (sev === 'High') sevMap[ent].High.add(spinId);
+    else sevMap[ent].Low.add(spinId);
   });
 
   tbody.innerHTML = '';
-  Object.entries(map).forEach(([ent, s]) => {
-    const totalForEnterprise = enterpriseTotals[ent] || s.Total;
+  Object.keys(issueSpinSet).forEach(ent => {
+    const totalSpins = enterpriseTotals[ent]?.size || 0;
+    const issueSpins = issueSpinSet[ent].size;
+
+    const b = sevMap[ent].Blocker.size;
+    const h = sevMap[ent].High.size;
+    const l = sevMap[ent].Low.size;
+
     tbody.innerHTML += `<tr><td>${ent}</td>
-      <td><b>${((s.Total / totalForEnterprise) * 100).toFixed(1)}%</b> (${s.Total})</td>
-      <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
-      <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
-      <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
+      <td><b>${((issueSpins / totalSpins) * 100).toFixed(1)}%</b> (${issueSpins})</td>
+      <td><b>${((b / issueSpins) * 100).toFixed(1)}%</b> (${b})</td>
+      <td><b>${((h / issueSpins) * 100).toFixed(1)}%</b> (${h})</td>
+      <td><b>${((l / issueSpins) * 100).toFixed(1)}%</b> (${l})</td></tr>`;
   });
 }
 
@@ -267,16 +288,22 @@ function renderSpinTable(data) {
 }
 
 function renderPieChart(data) {
-  const sevCount = { Blocker: 0, High: 0, Low: 0 };
-  data.forEach(row => sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1);
-  const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
+  const sevCount = { Blocker: new Set(), High: new Set(), Low: new Set() };
+  data.forEach(row => {
+    const sev = row['Severity'];
+    const spinId = row['Spin_id'];
+    if (sevCount[sev]) sevCount[sev].add(spinId);
+  });
+
+  const counts = Object.fromEntries(Object.entries(sevCount).map(([k, v]) => [k, v.size]));
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const ctx = document.getElementById('severityPie').getContext('2d');
   if (window.pieChart) window.pieChart.destroy();
   window.pieChart = new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: Object.keys(sevCount),
-      datasets: [{ data: Object.values(sevCount), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
+      labels: Object.keys(counts),
+      datasets: [{ data: Object.values(counts), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
     },
     options: {
       plugins: {
@@ -292,21 +319,25 @@ function renderPieChart(data) {
 }
 
 function renderBarChart(data) {
-  const issueCounts = {};
+  const issueMap = {};
+  const seen = new Set();
   data.forEach(row => {
+    const spinId = row['Spin_id'];
+    if (seen.has(spinId)) return;
+    seen.add(spinId);
     const issue = row['Issue'] || 'Other';
-    issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+    issueMap[issue] = (issueMap[issue] || 0) + 1;
   });
-  const total = Object.values(issueCounts).reduce((a, b) => a + b, 0);
+  const total = Object.values(issueMap).reduce((a, b) => a + b, 0);
   const ctx = document.getElementById('issueChart').getContext('2d');
   if (window.barChart) window.barChart.destroy();
   window.barChart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: Object.keys(issueCounts),
+      labels: Object.keys(issueMap),
       datasets: [{
         label: 'Issue %',
-        data: Object.values(issueCounts).map(v => ((v / total) * 100).toFixed(1)),
+        data: Object.values(issueMap).map(v => ((v / total) * 100).toFixed(1)),
         backgroundColor: '#007bff'
       }]
     },
@@ -346,10 +377,7 @@ function exportTableToCSV(filename) {
   );
   const blob = new Blob([rows.join("\n")], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
