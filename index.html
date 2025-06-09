@@ -68,7 +68,7 @@
     /* Monthly summary styles */
     #monthlySummarySection {
       background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      max-width: 900px; margin: 20px auto;
+      max-width: 900px; margin: 20px auto 40px;
       max-height: 600px;
       overflow-y: auto;
     }
@@ -77,6 +77,26 @@
       border-collapse: collapse;
     }
     #monthlySummarySection th, #monthlySummarySection td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    #issueMonthlySummarySection {
+      max-width: 900px;
+      margin: auto 0 40px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    #issueMonthlySummarySection table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #issueMonthlySummarySection th, #issueMonthlySummarySection td {
       padding: 8px;
       border: 1px solid #ddd;
       text-align: left;
@@ -187,9 +207,21 @@
             <th>Low Issues</th>
           </tr>
         </thead>
-        <tbody>
-          <!-- Monthly summary rows will be inserted here -->
-        </tbody>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h2 style="text-align:center; margin-bottom: 20px;">Issue-wise Monthly Summary</h2>
+    <div id="issueMonthlySummarySection">
+      <table id="issueMonthlySummaryTable">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Issue</th>
+            <th>Count of Spins</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
   </div>
@@ -273,6 +305,7 @@ function applyFilters() {
   renderPieChart(filteredMarked);
   renderBarChart(filteredMarked);
   renderMonthlySummary(globalData);
+  renderIssueWiseMonthlySummary(globalData);
 }
 
 function renderIssueTable(data) {
@@ -343,217 +376,4 @@ function renderEnterpriseIssueTable(markedData, receivedData) {
     const rawPercent = totalSpins > 0 ? ((issueSpins / totalSpins) * 100) : 0;
     const issuePercent = Math.min(100, rawPercent).toFixed(1);
 
-    tbody.innerHTML += `<tr><td>${ent}</td>
-      <td><b>${issuePercent}%</b> (${issueSpins})</td>
-      <td><b>${((b / issueSpins) * 100).toFixed(1)}%</b> (${b})</td>
-      <td><b>${((h / issueSpins) * 100).toFixed(1)}%</b> (${h})</td>
-      <td><b>${((l / issueSpins) * 100).toFixed(1)}%</b> (${l})</td></tr>`;
-  });
-}
-
-function renderSpinTable(data) {
-  const tbody = document.getElementById('spinTable').querySelector('tbody');
-  tbody.innerHTML = '';
-  data.forEach(row => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin']}'">${row['Spin_id']}</td>
-      <td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-function renderPieChart(data) {
-  const sevCount = { Blocker: new Set(), High: new Set(), Low: new Set() };
-  data.forEach(row => {
-    const sev = row['Severity'];
-    const spinId = row['Spin_id'];
-    if (sevCount[sev]) sevCount[sev].add(spinId);
-  });
-
-  const counts = Object.fromEntries(Object.entries(sevCount).map(([k, v]) => [k, v.size]));
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  const ctx = document.getElementById('severityPie').getContext('2d');
-  if (window.pieChart) window.pieChart.destroy();
-  window.pieChart = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: Object.keys(counts),
-      datasets: [{ data: Object.values(counts), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
-    },
-    options: {
-      plugins: {
-        legend: { position: 'right' },
-        datalabels: {
-          formatter: value => `${((value / total) * 100).toFixed(1)}%`,
-          color: '#000'
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-function renderBarChart(data) {
-  const issueMap = {};
-  const seen = new Set();
-  data.forEach(row => {
-    const spinId = row['Spin_id'];
-    if (seen.has(spinId)) return;
-    seen.add(spinId);
-    const issue = row['Issue'] || 'Other';
-    issueMap[issue] = (issueMap[issue] || 0) + 1;
-  });
-  const total = Object.values(issueMap).reduce((a, b) => a + b, 0);
-  const ctx = document.getElementById('issueChart').getContext('2d');
-  if (window.barChart) window.barChart.destroy();
-  window.barChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: Object.keys(issueMap),
-      datasets: [{
-        label: 'Issue %',
-        data: Object.values(issueMap).map(v => ((v / total) * 100).toFixed(1)),
-        backgroundColor: '#007bff'
-      }]
-    },
-    options: {
-      plugins: {
-        datalabels: {
-          anchor: 'end',
-          align: 'end',
-          formatter: v => `${v}%`,
-          color: '#000'
-        }
-      },
-      scales: { y: { beginAtZero: true } }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-function renderMonthlySummary(data) {
-  // Group data by Month and summarize total spins, marked spins and severities
-  const tbody = document.querySelector('#monthlySummaryTable tbody');
-  const monthMap = {};
-
-  // Use all globalData to get totals; 
-  // Marked spins: spins in globalData (qcData)
-  // Total spins: spins in totalDataGlobal for that month (if you want total from totalDataGlobal, otherwise from globalData)
-
-  // We'll use globalData here since it is overall data, but for total spins can use totalDataGlobal if you want
-
-  // For flexibility, use totalDataGlobal for total spins by month, and globalData for marked spins and severities
-
-  // First get total spins per month from totalDataGlobal
-  const totalSpinsPerMonth = {};
-  totalDataGlobal.forEach(row => {
-    const month = row['Month'] || 'Unknown';
-    const spinId = (row['Spin_id'] || '').trim();
-    if (!spinId) return;
-    if (!totalSpinsPerMonth[month]) totalSpinsPerMonth[month] = new Set();
-    totalSpinsPerMonth[month].add(spinId);
-  });
-
-  // Marked spins and severities from globalData
-  const markedSpinsPerMonth = {};
-  const severityCountPerMonth = {};
-  globalData.forEach(row => {
-    const month = row['Month'] || 'Unknown';
-    const spinId = (row['Spin_id'] || '').trim();
-    const sev = (row['Severity'] || 'Low').trim();
-    if (!spinId) return;
-    if (!markedSpinsPerMonth[month]) markedSpinsPerMonth[month] = new Set();
-    markedSpinsPerMonth[month].add(spinId);
-
-    if (!severityCountPerMonth[month]) severityCountPerMonth[month] = { Blocker: new Set(), High: new Set(), Low: new Set() };
-    if (sev === 'Blocker') severityCountPerMonth[month].Blocker.add(spinId);
-    else if (sev === 'High') severityCountPerMonth[month].High.add(spinId);
-    else severityCountPerMonth[month].Low.add(spinId);
-  });
-
-  // Build final month list sorted descending (recent first)
-  const months = Array.from(new Set([...Object.keys(totalSpinsPerMonth), ...Object.keys(markedSpinsPerMonth)]));
-  months.sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a)); // assumes Month format like 'Jan 2025'
-
-  tbody.innerHTML = '';
-  months.forEach(month => {
-    const totalSpins = totalSpinsPerMonth[month]?.size || 0;
-    const markedSpins = markedSpinsPerMonth[month]?.size || 0;
-    const severities = severityCountPerMonth[month] || { Blocker: new Set(), High: new Set(), Low: new Set() };
-    const blockers = severities.Blocker.size;
-    const highs = severities.High.size;
-    const lows = severities.Low.size;
-
-    tbody.innerHTML += `<tr>
-      <td>${month}</td>
-      <td>${totalSpins}</td>
-      <td>${markedSpins}</td>
-      <td>${blockers}</td>
-      <td>${highs}</td>
-      <td>${lows}</td>
-    </tr>`;
-  });
-}
-
-// --- Tabs switching logic ---
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-
-    // Hide all tab contents
-    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-
-    // Show selected tab content
-    const tabId = tab.getAttribute('data-tab');
-    document.getElementById(tabId).classList.add('active');
-
-    // Show/hide filters and summary bar only for dashboard tab
-    const isDashboard = tabId === 'dashboardTab';
-    document.getElementById('filtersSection').style.display = isDashboard ? 'flex' : 'none';
-    document.getElementById('summaryBar').style.display = isDashboard ? 'flex' : 'none';
-  });
-});
-
-function sortTable(header) {
-  const table = header.closest('table');
-  const tbody = table.querySelector('tbody');
-  const index = Array.from(header.parentNode.children).indexOf(header);
-  const rows = Array.from(tbody.querySelectorAll('tr'));
-  const desc = header.classList.toggle('desc');
-  rows.sort((a, b) => {
-    const getVal = row => parseFloat((row.children[index].textContent.match(/([\d.]+)%/) || [])[1] || 0);
-    return desc ? getVal(b) - getVal(a) : getVal(a) - getVal(b);
-  });
-  tbody.innerHTML = '';
-  rows.forEach(r => tbody.appendChild(r));
-  Array.from(header.parentNode.children).forEach(th => th !== header && th.classList.remove('desc'));
-}
-
-function exportTableToCSV(filename) {
-  const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
-    Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
-  );
-  const blob = new Blob([rows.join("\n")], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function resetFilters() {
-  document.querySelectorAll('.filters select').forEach(sel => sel.value = '');
-  applyFilters();
-}
-
-window.onload = () => {
-  loadAndRender().then(() => {
-    sortTable(document.querySelector("#issueSummary thead th:nth-child(3)"));
-    sortTable(document.querySelector("#enterpriseSummary thead th:nth-child(3)"));
-  });
-};
-</script>
-</body>
-</html>
+    tbody
