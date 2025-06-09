@@ -158,16 +158,16 @@
 <div class="main-content tab-content" id="monthlySummaryTab" style="display:none;">
   <h2>Monthly Summary</h2>
 
-  <h3>Issue × Month</h3>
-  <table id="monthlySummaryTable">
-    <thead><tr id="monthlySummaryHeader"></tr></thead>
-    <tbody id="monthlySummaryBody"></tbody>
-  </table>
-
-  <h3 style="margin-top: 40px;">Severity × Month</h3>
+  <h3>Severity × Month</h3>
   <table id="severityMonthlyTable">
     <thead><tr id="severityMonthlyHeader"></tr></thead>
     <tbody id="severityMonthlyBody"></tbody>
+  </table>
+
+  <h3 style="margin-top: 40px;">Issue × Month</h3>
+  <table id="monthlySummaryTable">
+    <thead><tr id="monthlySummaryHeader"></tr></thead>
+    <tbody id="monthlySummaryBody"></tbody>
   </table>
 </div>
 
@@ -252,8 +252,8 @@
     renderPieChart(filteredMarked);
     renderBarChart(filteredMarked);
 
-    renderMonthlySummary(filteredMarked);
     renderSeverityMonthlySummary(filteredMarked);
+    renderMonthlySummary(filteredMarked);
   }
 
   function populateSummarySection(data) {
