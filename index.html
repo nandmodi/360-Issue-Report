@@ -15,18 +15,39 @@
       text-align: center; font-weight: bold; font-size: 22px; z-index: 10000;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
+    .tabs {
+      position: fixed;
+      top: 48px; /* below header */
+      left: 0; right: 0;
+      background: #fff;
+      display: flex;
+      border-bottom: 2px solid #ccc;
+      z-index: 10000;
+    }
+    .tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #555;
+      border-bottom: 3px solid transparent;
+      user-select: none;
+    }
+    .tab.active {
+      color: #007bff;
+      border-color: #007bff;
+    }
     .filters {
-      position: fixed; top: 50px; left: 0; right: 0; background: #f8f9fa;
+      position: fixed; top: 88px; left: 0; right: 0; background: #f8f9fa;
       padding: 10px 20px; display: flex; flex-wrap: wrap;
       gap: 10px; justify-content: center; border-bottom: 1px solid #ccc; z-index: 9999;
     }
     .filters select { padding: 6px 10px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; }
     .summary-bar {
-      position: fixed; top: 110px; left: 0; right: 0; background: #e2e6ea; z-index: 9998;
+      position: fixed; top: 148px; left: 0; right: 0; background: #e2e6ea; z-index: 9998;
       padding: 10px 20px; display: flex; justify-content: space-between;
       font-weight: bold; border-top: 1px solid #ccc; border-bottom: 2px solid #ccc;
     }
-    .main-content { margin-top: 180px; padding: 0 20px; }
+    .main-content { margin-top: 190px; padding: 0 20px; }
     .chart-row { display: flex; gap: 20px; margin: 20px 0; justify-content: space-between; }
     .chart-box.issue { flex: 2; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
     .chart-box.pie { flex: 1; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
@@ -43,11 +64,43 @@
     .iframe-box { flex: 2; }
     iframe { width: 100%; height: 300px; border: none; border-radius: 10px; }
     .clickable { color: blue; text-decoration: underline; cursor: pointer; }
+
+    /* Monthly summary styles */
+    #monthlySummarySection {
+      background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      max-width: 900px; margin: 20px auto;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    #monthlySummarySection table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #monthlySummarySection th, #monthlySummarySection td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    /* Hide non-active tab content */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
   </style>
 </head>
 <body>
   <div class="header-bar">360 Issue Dashboard</div>
-  <div class="filters">
+
+  <div class="tabs">
+    <div class="tab active" data-tab="dashboardTab">Dashboard</div>
+    <div class="tab" data-tab="monthlySummaryTab">Monthly Summary</div>
+  </div>
+
+  <!-- Filters and summary bar only show on dashboard -->
+  <div class="filters" id="filtersSection">
     <select id="monthFilter" data-label="Month"><option value="">Month</option></select>
     <select id="severityFilter" data-label="Severity"><option value="">Severity</option></select>
     <select id="issueFilter" data-label="Issue"><option value="">Issue</option></select>
@@ -56,7 +109,8 @@
     <select id="qcFilter" data-label="QC"><option value="">QC</option></select>
     <button onclick="resetFilters()" style="margin-left: 10px; padding: 5px 10px;">Reset</button>
   </div>
-  <div class="summary-bar">
+
+  <div class="summary-bar" id="summaryBar">
     <div>Total Marked Spin: <span id="markedSpin">0</span></div>
     <div>
       <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">🔄</button>
@@ -64,7 +118,9 @@
     </div>
     <div>Total Received Spin: <span id="receivedSpin">0</span></div>
   </div>
-  <div class="main-content">
+
+  <!-- Dashboard Tab Content -->
+  <div class="main-content tab-content active" id="dashboardTab">
     <div class="chart-row">
       <div class="chart-box issue"><canvas id="issueChart"></canvas></div>
       <div class="chart-box pie"><canvas id="severityPie"></canvas></div>
@@ -114,6 +170,30 @@
         <iframe id="spinIframe" title="Spin Preview"></iframe>
       </div>
     </div>
+  </div>
+
+  <!-- Monthly Summary Tab Content -->
+  <div class="main-content tab-content" id="monthlySummaryTab">
+    <h2 style="text-align:center; margin-bottom: 20px;">Monthly Summary</h2>
+    <div id="monthlySummarySection">
+      <table id="monthlySummaryTable">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Total Spins</th>
+            <th>Marked Spins</th>
+            <th>Blocker Issues</th>
+            <th>High Issues</th>
+            <th>Low Issues</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Monthly summary rows will be inserted here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 <script>
 let globalData = [];
 let totalDataGlobal = [];
@@ -125,6 +205,7 @@ async function loadAndRender() {
   ]);
   globalData = qcData;
   totalDataGlobal = totalData;
+  populateFilters(globalData);
   applyFilters();
 }
 
@@ -186,12 +267,12 @@ function applyFilters() {
   document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
   document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
 
-  populateFilters(globalData);
   renderIssueTable(filteredMarked);
   renderEnterpriseIssueTable(filteredMarked, filteredReceived);
   renderSpinTable(filteredMarked);
   renderPieChart(filteredMarked);
   renderBarChart(filteredMarked);
+  renderMonthlySummary(globalData);
 }
 
 function renderIssueTable(data) {
@@ -220,8 +301,7 @@ function renderIssueTable(data) {
       <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
   });
 }
-</script>
-<script>
+
 function renderEnterpriseIssueTable(markedData, receivedData) {
   const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
   const enterpriseTotals = {};
@@ -350,6 +430,90 @@ function renderBarChart(data) {
     plugins: [ChartDataLabels]
   });
 }
+
+function renderMonthlySummary(data) {
+  // Group data by Month and summarize total spins, marked spins and severities
+  const tbody = document.querySelector('#monthlySummaryTable tbody');
+  const monthMap = {};
+
+  // Use all globalData to get totals; 
+  // Marked spins: spins in globalData (qcData)
+  // Total spins: spins in totalDataGlobal for that month (if you want total from totalDataGlobal, otherwise from globalData)
+
+  // We'll use globalData here since it is overall data, but for total spins can use totalDataGlobal if you want
+
+  // For flexibility, use totalDataGlobal for total spins by month, and globalData for marked spins and severities
+
+  // First get total spins per month from totalDataGlobal
+  const totalSpinsPerMonth = {};
+  totalDataGlobal.forEach(row => {
+    const month = row['Month'] || 'Unknown';
+    const spinId = (row['Spin_id'] || '').trim();
+    if (!spinId) return;
+    if (!totalSpinsPerMonth[month]) totalSpinsPerMonth[month] = new Set();
+    totalSpinsPerMonth[month].add(spinId);
+  });
+
+  // Marked spins and severities from globalData
+  const markedSpinsPerMonth = {};
+  const severityCountPerMonth = {};
+  globalData.forEach(row => {
+    const month = row['Month'] || 'Unknown';
+    const spinId = (row['Spin_id'] || '').trim();
+    const sev = (row['Severity'] || 'Low').trim();
+    if (!spinId) return;
+    if (!markedSpinsPerMonth[month]) markedSpinsPerMonth[month] = new Set();
+    markedSpinsPerMonth[month].add(spinId);
+
+    if (!severityCountPerMonth[month]) severityCountPerMonth[month] = { Blocker: new Set(), High: new Set(), Low: new Set() };
+    if (sev === 'Blocker') severityCountPerMonth[month].Blocker.add(spinId);
+    else if (sev === 'High') severityCountPerMonth[month].High.add(spinId);
+    else severityCountPerMonth[month].Low.add(spinId);
+  });
+
+  // Build final month list sorted descending (recent first)
+  const months = Array.from(new Set([...Object.keys(totalSpinsPerMonth), ...Object.keys(markedSpinsPerMonth)]));
+  months.sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a)); // assumes Month format like 'Jan 2025'
+
+  tbody.innerHTML = '';
+  months.forEach(month => {
+    const totalSpins = totalSpinsPerMonth[month]?.size || 0;
+    const markedSpins = markedSpinsPerMonth[month]?.size || 0;
+    const severities = severityCountPerMonth[month] || { Blocker: new Set(), High: new Set(), Low: new Set() };
+    const blockers = severities.Blocker.size;
+    const highs = severities.High.size;
+    const lows = severities.Low.size;
+
+    tbody.innerHTML += `<tr>
+      <td>${month}</td>
+      <td>${totalSpins}</td>
+      <td>${markedSpins}</td>
+      <td>${blockers}</td>
+      <td>${highs}</td>
+      <td>${lows}</td>
+    </tr>`;
+  });
+}
+
+// --- Tabs switching logic ---
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+
+    // Show selected tab content
+    const tabId = tab.getAttribute('data-tab');
+    document.getElementById(tabId).classList.add('active');
+
+    // Show/hide filters and summary bar only for dashboard tab
+    const isDashboard = tabId === 'dashboardTab';
+    document.getElementById('filtersSection').style.display = isDashboard ? 'flex' : 'none';
+    document.getElementById('summaryBar').style.display = isDashboard ? 'flex' : 'none';
+  });
+});
 
 function sortTable(header) {
   const table = header.closest('table');
