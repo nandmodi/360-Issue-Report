@@ -102,6 +102,13 @@
       padding: 8px;
       border: 1px solid #ddd;
       text-align: left;
+      user-select: none;
+    }
+    #issueMonthlySummarySection th.asc::after {
+      content: " ▲";
+    }
+    #issueMonthlySummarySection th.desc::after {
+      content: " ▼";
     }
 
     /* Hide non-active tab content */
@@ -218,7 +225,7 @@
       <table id="issueMonthlySummaryTable">
         <thead>
           <tr id="issueMonthlySummaryHeader">
-            <th>Issue</th>
+            <th onclick="sortMatrixTable(this)" style="cursor:pointer">Issue</th>
             <!-- Months columns dynamically inserted here -->
           </tr>
         </thead>
@@ -546,8 +553,9 @@ function renderIssueWiseMonthlySummary(data) {
   // Sort issues alphabetically
   const issues = Array.from(issueSet).sort();
 
-  // Build header row
-  theadRow.innerHTML = '<th>Issue</th>' + months.map(m => `<th>${m}</th>`).join('');
+  // Build header row with onclick and pointer cursor for sorting
+  theadRow.innerHTML = '<th onclick="sortMatrixTable(this)" style="cursor:pointer">Issue</th>' +
+    months.map(m => `<th onclick="sortMatrixTable(this)" style="cursor:pointer">${m}</th>`).join('');
 
   // Build body rows
   tbody.innerHTML = '';
@@ -589,6 +597,47 @@ function sortTable(header) {
   tbody.innerHTML = '';
   rows.forEach(r => tbody.appendChild(r));
   Array.from(header.parentNode.children).forEach(th => th !== header && th.classList.remove('desc'));
+}
+
+function sortMatrixTable(header) {
+  const table = header.closest('table');
+  const tbody = table.querySelector('tbody');
+  const index = Array.from(header.parentNode.children).indexOf(header);
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const isIssueCol = index === 0;
+  const currentAsc = header.classList.contains('asc');
+  const currentDesc = header.classList.contains('desc');
+
+  // Remove asc/desc classes from all headers
+  Array.from(header.parentNode.children).forEach(th => {
+    th.classList.remove('asc', 'desc');
+  });
+
+  // Toggle sort direction
+  const asc = !currentAsc;
+
+  header.classList.toggle('asc', asc);
+  header.classList.toggle('desc', !asc);
+
+  rows.sort((a, b) => {
+    const valA = a.children[index].textContent.trim();
+    const valB = b.children[index].textContent.trim();
+
+    if (isIssueCol) {
+      // Sort by Issue name (string)
+      if (valA < valB) return asc ? -1 : 1;
+      if (valA > valB) return asc ? 1 : -1;
+      return 0;
+    } else {
+      // Sort by numeric count
+      const numA = parseInt(valA) || 0;
+      const numB = parseInt(valB) || 0;
+      return asc ? numA - numB : numB - numA;
+    }
+  });
+
+  // Re-append rows in sorted order
+  rows.forEach(row => tbody.appendChild(row));
 }
 
 function exportTableToCSV(filename) {
