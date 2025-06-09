@@ -141,7 +141,6 @@
     <div>Total Received Spin: <span id="receivedSpin">0</span></div>
   </div>
 
-  <!-- Dashboard Tab -->
   <div class="main-content tab-content active" id="dashboardTab">
     <div class="chart-row">
       <div class="chart-box issue"><canvas id="issueChart"></canvas></div>
@@ -194,7 +193,6 @@
     </div>
   </div>
 
-  <!-- Monthly Summary Tab -->
   <div class="main-content tab-content" id="monthlySummaryTab">
     <h2 style="text-align:center; margin-bottom: 20px;">Severity vs Month Summary</h2>
     <div id="severityMonthlySummarySection">
@@ -202,7 +200,6 @@
         <thead>
           <tr id="severityMonthlySummaryHeader">
             <th>Severity</th>
-            <!-- Month columns dynamically inserted here -->
           </tr>
         </thead>
         <tbody></tbody>
@@ -215,10 +212,9 @@
     </div>
   </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script>
-  // Replace this dummyData with your actual data load logic
+  // Dummy data — replace this with your actual data load
   const dummyData = [
     { Spin_id: 'S1', Enterprise: 'EntA', Month: 'May 2025', Severity: 'Blocker', Issue: 'Issue1', Product_Type: 'Type1', QC: 'QC1' },
     { Spin_id: 'S2', Enterprise: 'EntB', Month: 'May 2025', Severity: 'High', Issue: 'Issue2', Product_Type: 'Type2', QC: 'QC2' },
@@ -233,7 +229,7 @@
   let globalData = dummyData;
   let totalDataGlobal = dummyData;
 
-  // Filters population
+  // Populate filters dropdowns
   function populateFilters(data) {
     const config = {
       monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
@@ -250,7 +246,7 @@
     });
   }
 
-  // Apply filters and render all views
+  // Filter data and render all views
   function applyFilters() {
     const filters = {
       Month: document.getElementById('monthFilter').value,
@@ -291,10 +287,163 @@
     renderSeverityTrendChart(months, severityMonthCounts);
   }
 
-  // Other rendering functions (issueTable, enterpriseTable, spinTable, pieChart, barChart) omitted here for brevity,
-  // you can copy those from the previous code snippets provided.
+  // Render functions
+  function renderIssueTable(data) {
+    const tbody = document.getElementById('issueSummary').querySelector('tbody');
+    const issueMap = {};
+    const seen = new Set();
 
-  // Severity × Month matrix and chart functions:
+    data.forEach(row => {
+      const spinId = (row['Spin_id'] || '').trim();
+      if (seen.has(spinId)) return;
+      seen.add(spinId);
+      const issue = (row['Issue'] || 'Other').trim();
+      const sev = (row['Severity'] || 'Low').trim();
+      if (!issueMap[issue]) issueMap[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+      issueMap[issue][sev]++;
+      issueMap[issue].Total++;
+    });
+
+    const total = seen.size;
+    tbody.innerHTML = '';
+    Object.entries(issueMap).forEach(([issue, s]) => {
+      tbody.innerHTML += `<tr><td>${issue}</td>
+        <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
+        <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
+        <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
+        <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
+    });
+  }
+
+  function renderEnterpriseIssueTable(markedData, receivedData) {
+    const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
+    const enterpriseTotals = {};
+    const issueSpinSet = {};
+    const sevMap = {};
+
+    receivedData.forEach(row => {
+      const ent = (row['Enterprise'] || 'Unknown').trim();
+      const spinId = (row['Spin_id'] || '').trim();
+      if (!spinId) return;
+      if (!enterpriseTotals[ent]) enterpriseTotals[ent] = new Set();
+      enterpriseTotals[ent].add(spinId);
+    });
+
+    markedData.forEach(row => {
+      const ent = (row['Enterprise'] || 'Unknown').trim();
+      const sev = (row['Severity'] || 'Low').trim();
+      const spinId = (row['Spin_id'] || '').trim();
+      if (!spinId) return;
+
+      if (!issueSpinSet[ent]) issueSpinSet[ent] = new Set();
+      issueSpinSet[ent].add(spinId);
+
+      if (!sevMap[ent]) sevMap[ent] = { Blocker: new Set(), High: new Set(), Low: new Set() };
+      if (sev === 'Blocker') sevMap[ent].Blocker.add(spinId);
+      else if (sev === 'High') sevMap[ent].High.add(spinId);
+      else sevMap[ent].Low.add(spinId);
+    });
+
+    tbody.innerHTML = '';
+    Object.keys(issueSpinSet).forEach(ent => {
+      const totalSpins = enterpriseTotals[ent]?.size || 0;
+      const issueSpins = issueSpinSet[ent].size;
+
+      const b = sevMap[ent].Blocker.size;
+      const h = sevMap[ent].High.size;
+      const l = sevMap[ent].Low.size;
+
+      const rawPercent = totalSpins > 0 ? ((issueSpins / totalSpins) * 100) : 0;
+      const issuePercent = Math.min(100, rawPercent).toFixed(1);
+
+      tbody.innerHTML += `<tr><td>${ent}</td>
+        <td><b>${issuePercent}%</b> (${issueSpins})</td>
+        <td><b>${((b / issueSpins) * 100).toFixed(1)}%</b> (${b})</td>
+        <td><b>${((h / issueSpins) * 100).toFixed(1)}%</b> (${h})</td>
+        <td><b>${((l / issueSpins) * 100).toFixed(1)}%</b> (${l})</td></tr>`;
+    });
+  }
+
+  function renderSpinTable(data) {
+    const tbody = document.getElementById('spinTable').querySelector('tbody');
+    tbody.innerHTML = '';
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || '#'}'">${row['Spin_id']}</td>
+        <td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderPieChart(data) {
+    const sevCount = { Blocker: new Set(), High: new Set(), Low: new Set() };
+    data.forEach(row => {
+      const sev = row['Severity'];
+      const spinId = row['Spin_id'];
+      if (sevCount[sev]) sevCount[sev].add(spinId);
+    });
+
+    const counts = Object.fromEntries(Object.entries(sevCount).map(([k, v]) => [k, v.size]));
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const ctx = document.getElementById('severityPie').getContext('2d');
+    if (window.pieChart) window.pieChart.destroy();
+    window.pieChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: Object.keys(counts),
+        datasets: [{ data: Object.values(counts), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
+      },
+      options: {
+        plugins: {
+          legend: { position: 'right' },
+          datalabels: {
+            formatter: value => `${((value / total) * 100).toFixed(1)}%`,
+            color: '#000'
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+
+  function renderBarChart(data) {
+    const issueMap = {};
+    const seen = new Set();
+    data.forEach(row => {
+      const spinId = row['Spin_id'];
+      if (seen.has(spinId)) return;
+      seen.add(spinId);
+      const issue = row['Issue'] || 'Other';
+      issueMap[issue] = (issueMap[issue] || 0) + 1;
+    });
+    const total = Object.values(issueMap).reduce((a, b) => a + b, 0);
+    const ctx = document.getElementById('issueChart').getContext('2d');
+    if (window.barChart) window.barChart.destroy();
+    window.barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(issueMap),
+        datasets: [{
+          label: 'Issue %',
+          data: Object.values(issueMap).map(v => ((v / total) * 100).toFixed(1)),
+          backgroundColor: '#007bff'
+        }]
+      },
+      options: {
+        plugins: {
+          datalabels: {
+            anchor: 'end',
+            align: 'end',
+            formatter: v => `${v}%`,
+            color: '#000'
+          }
+        },
+        scales: { y: { beginAtZero: true } }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+
   let severityTrendChartInstance = null;
   function renderSeverityMonthlySummary(data) {
     const tbody = document.querySelector('#severityMonthlySummaryTable tbody');
@@ -394,15 +543,47 @@
     });
   });
 
-  // Sorting and export functions omitted for brevity — use previous provided code
+  // Table sorting
+  function sortTable(header) {
+    const table = header.closest('table');
+    const tbody = table.querySelector('tbody');
+    const index = Array.from(header.parentNode.children).indexOf(header);
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const desc = header.classList.toggle('desc');
+    rows.sort((a, b) => {
+      const getVal = row => parseFloat((row.children[index].textContent.match(/([\d.]+)%/) || [])[1] || 0);
+      return desc ? getVal(b) - getVal(a) : getVal(a) - getVal(b);
+    });
+    tbody.innerHTML = '';
+    rows.forEach(r => tbody.appendChild(r));
+    Array.from(header.parentNode.children).forEach(th => th !== header && th.classList.remove('desc'));
+  }
 
-  // Initialize on load
+  // Export CSV for spinTable
+  function exportTableToCSV(filename) {
+    const rows = Array.from(document.querySelectorAll("#spinTable tr")).map(tr =>
+      Array.from(tr.querySelectorAll("td, th")).map(td => td.textContent.trim()).join(",")
+    );
+    const blob = new Blob([rows.join("\n")], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Reset filters
+  function resetFilters() {
+    document.querySelectorAll('.filters select').forEach(sel => sel.value = '');
+    applyFilters();
+  }
+
+  // Initial load
   window.onload = () => {
     populateFilters(globalData);
     applyFilters();
   };
-
-  // Fill in the other functions like renderIssueTable, renderEnterpriseIssueTable, renderSpinTable, renderPieChart, renderBarChart, sortTable, exportTableToCSV here from the previous full code snippets
 </script>
 </body>
 </html>
