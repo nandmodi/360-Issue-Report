@@ -17,7 +17,7 @@
     }
     .tabs {
       position: fixed;
-      top: 48px; /* below header */
+      top: 48px;
       left: 0; right: 0;
       background: #fff;
       display: flex;
@@ -65,50 +65,41 @@
     iframe { width: 100%; height: 300px; border: none; border-radius: 10px; }
     .clickable { color: blue; text-decoration: underline; cursor: pointer; }
 
-    /* Monthly summary styles */
-    #monthlySummarySection {
-      background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      max-width: 900px; margin: 20px auto 40px;
-      max-height: 600px;
-      overflow-y: auto;
-    }
-    #monthlySummarySection table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    #monthlySummarySection th, #monthlySummarySection td {
-      padding: 8px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-
-    #issueMonthlySummarySection {
+    /* Severity × Month matrix styles */
+    #severityMonthlySummarySection {
       max-width: 900px;
-      margin: auto 0 40px;
+      margin: auto 0 20px;
       background: #fff;
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       max-height: 600px;
-      overflow-x: auto; /* allow horizontal scroll */
+      overflow-x: auto;
       overflow-y: auto;
     }
-    #issueMonthlySummarySection table {
+    #severityMonthlySummarySection table {
       width: 100%;
       border-collapse: collapse;
       white-space: nowrap;
     }
-    #issueMonthlySummarySection th, #issueMonthlySummarySection td {
+    #severityMonthlySummarySection th, #severityMonthlySummarySection td {
       padding: 8px;
       border: 1px solid #ddd;
       text-align: left;
       user-select: none;
     }
-    #issueMonthlySummarySection th.asc::after {
+    #severityMonthlySummarySection th.asc::after {
       content: " ▲";
     }
-    #issueMonthlySummarySection th.desc::after {
+    #severityMonthlySummarySection th.desc::after {
       content: " ▼";
+    }
+
+    /* Line chart container */
+    #severityTrendChart {
+      max-width: 900px;
+      margin: 0 auto 40px;
+      display: block;
     }
 
     /* Hide non-active tab content */
@@ -128,7 +119,6 @@
     <div class="tab" data-tab="monthlySummaryTab">Monthly Summary</div>
   </div>
 
-  <!-- Filters and summary bar only show on dashboard -->
   <div class="filters" id="filtersSection">
     <select id="monthFilter" data-label="Month"><option value="">Month</option></select>
     <select id="severityFilter" data-label="Severity"><option value="">Severity</option></select>
@@ -203,40 +193,29 @@
 
   <!-- Monthly Summary Tab Content -->
   <div class="main-content tab-content" id="monthlySummaryTab">
-    <h2 style="text-align:center; margin-bottom: 20px;">Monthly Summary</h2>
-    <div id="monthlySummarySection">
-      <table id="monthlySummaryTable">
+    <h2 style="text-align:center; margin-bottom: 20px;">Severity vs Month Summary</h2>
+    <div id="severityMonthlySummarySection">
+      <table id="severityMonthlySummaryTable">
         <thead>
-          <tr>
-            <th>Month</th>
-            <th>Total Spins</th>
-            <th>Marked Spins</th>
-            <th>Blocker Issues</th>
-            <th>High Issues</th>
-            <th>Low Issues</th>
+          <tr id="severityMonthlySummaryHeader">
+            <th>Severity</th>
+            <!-- Month columns dynamically inserted here -->
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
 
-    <h2 style="text-align:center; margin-bottom: 20px;">Issue vs Month Summary</h2>
-    <div id="issueMonthlySummarySection">
-      <table id="issueMonthlySummaryTable">
-        <thead>
-          <tr id="issueMonthlySummaryHeader">
-            <th onclick="sortMatrixTable(this)" style="cursor:pointer">Issue</th>
-            <!-- Months columns dynamically inserted here -->
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <h2 style="text-align:center; margin-bottom: 20px;">Severity Trend Over Months</h2>
+    <div style="max-width: 900px; margin: auto 0 40px;">
+      <canvas id="severityTrendChart" height="300"></canvas>
     </div>
   </div>
 
 <script>
 let globalData = [];
 let totalDataGlobal = [];
+let severityTrendChartInstance = null;
 
 async function loadAndRender() {
   const [qcData, totalData] = await Promise.all([
@@ -312,9 +291,105 @@ function applyFilters() {
   renderSpinTable(filteredMarked);
   renderPieChart(filteredMarked);
   renderBarChart(filteredMarked);
-  renderMonthlySummary(globalData);
-  renderIssueWiseMonthlySummary(globalData);
+
+  // Render Severity vs Month table and chart
+  const { months, severityMonthCounts } = renderSeverityMonthlySummary(globalData);
+  renderSeverityTrendChart(months, severityMonthCounts);
 }
+
+function renderSeverityMonthlySummary(data) {
+  const tbody = document.querySelector('#severityMonthlySummaryTable tbody');
+  const theadRow = document.getElementById('severityMonthlySummaryHeader');
+
+  const severities = ['Blocker', 'High', 'Low'];
+
+  const monthSet = new Set();
+  data.forEach(row => {
+    const month = row['Month'] || 'Unknown';
+    monthSet.add(month);
+  });
+
+  const months = Array.from(monthSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
+
+  theadRow.innerHTML = '<th>Severity</th>' + months.map(m => `<th>${m}</th>`).join('');
+
+  const severityMonthCounts = {};
+  severities.forEach(s => severityMonthCounts[s] = {});
+
+  data.forEach(row => {
+    const month = row['Month'] || 'Unknown';
+    const sev = (row['Severity'] || 'Low').trim();
+    if (!severityMonthCounts[sev]) severityMonthCounts[sev] = {};
+    if (!severityMonthCounts[sev][month]) severityMonthCounts[sev][month] = 0;
+    severityMonthCounts[sev][month]++;
+  });
+
+  tbody.innerHTML = '';
+  severities.forEach(sev => {
+    const rowCells = months.map(month => severityMonthCounts[sev][month] || 0);
+    tbody.innerHTML += `<tr><td>${sev}</td>` + rowCells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+  });
+
+  return { months, severityMonthCounts };
+}
+
+function renderSeverityTrendChart(months, severityMonthCounts) {
+  const ctx = document.getElementById('severityTrendChart').getContext('2d');
+
+  const colors = {
+    Blocker: '#FF6384',
+    High: '#36A2EB',
+    Low: '#4BC0C0'
+  };
+
+  const datasets = Object.entries(severityMonthCounts).map(([sev, counts]) => ({
+    label: sev,
+    data: months.map(m => counts[m] || 0),
+    borderColor: colors[sev] || '#000',
+    backgroundColor: colors[sev] || '#000',
+    fill: false,
+    tension: 0.3,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+  }));
+
+  if (severityTrendChartInstance) {
+    severityTrendChartInstance.destroy();
+  }
+
+  severityTrendChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: datasets,
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+        },
+      },
+      interaction: {
+        mode: 'nearest',
+        intersect: false
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Count' }
+        },
+        x: {
+          title: { display: true, text: 'Month' }
+        }
+      }
+    }
+  });
+}
+
+// --- The rest of your existing functions for other tables and charts ---
 
 function renderIssueTable(data) {
   const tbody = document.getElementById('issueSummary').querySelector('tbody');
@@ -472,102 +547,6 @@ function renderBarChart(data) {
   });
 }
 
-function renderMonthlySummary(data) {
-  const tbody = document.querySelector('#monthlySummaryTable tbody');
-  const totalSpinsPerMonth = {};
-  const markedSpinsPerMonth = {};
-  const severityCountPerMonth = {};
-
-  totalDataGlobal.forEach(row => {
-    const month = row['Month'] || 'Unknown';
-    const spinId = (row['Spin_id'] || '').trim();
-    if (!spinId) return;
-    if (!totalSpinsPerMonth[month]) totalSpinsPerMonth[month] = new Set();
-    totalSpinsPerMonth[month].add(spinId);
-  });
-
-  data.forEach(row => {
-    const month = row['Month'] || 'Unknown';
-    const spinId = (row['Spin_id'] || '').trim();
-    const sev = (row['Severity'] || 'Low').trim();
-    if (!spinId) return;
-    if (!markedSpinsPerMonth[month]) markedSpinsPerMonth[month] = new Set();
-    markedSpinsPerMonth[month].add(spinId);
-
-    if (!severityCountPerMonth[month]) severityCountPerMonth[month] = { Blocker: new Set(), High: new Set(), Low: new Set() };
-    if (sev === 'Blocker') severityCountPerMonth[month].Blocker.add(spinId);
-    else if (sev === 'High') severityCountPerMonth[month].High.add(spinId);
-    else severityCountPerMonth[month].Low.add(spinId);
-  });
-
-  const months = Array.from(new Set([...Object.keys(totalSpinsPerMonth), ...Object.keys(markedSpinsPerMonth)]));
-  months.sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
-
-  tbody.innerHTML = '';
-  months.forEach(month => {
-    const totalSpins = totalSpinsPerMonth[month]?.size || 0;
-    const markedSpins = markedSpinsPerMonth[month]?.size || 0;
-    const severities = severityCountPerMonth[month] || { Blocker: new Set(), High: new Set(), Low: new Set() };
-    const blockers = severities.Blocker.size;
-    const highs = severities.High.size;
-    const lows = severities.Low.size;
-
-    tbody.innerHTML += `<tr>
-      <td>${month}</td>
-      <td>${totalSpins}</td>
-      <td>${markedSpins}</td>
-      <td>${blockers}</td>
-      <td>${highs}</td>
-      <td>${lows}</td>
-    </tr>`;
-  });
-}
-
-function renderIssueWiseMonthlySummary(data) {
-  const tbody = document.querySelector('#issueMonthlySummaryTable tbody');
-  const theadRow = document.getElementById('issueMonthlySummaryHeader');
-
-  // Build sets of unique months and issues
-  const monthSet = new Set();
-  const issueSet = new Set();
-
-  // Map of issue => { month => Set(spinIds) }
-  const issueMonthMap = {};
-
-  data.forEach(row => {
-    const month = row['Month'] || 'Unknown';
-    const issue = (row['Issue'] || 'Other').trim();
-    const spinId = (row['Spin_id'] || '').trim();
-    if (!spinId) return;
-
-    monthSet.add(month);
-    issueSet.add(issue);
-
-    if (!issueMonthMap[issue]) issueMonthMap[issue] = {};
-    if (!issueMonthMap[issue][month]) issueMonthMap[issue][month] = new Set();
-    issueMonthMap[issue][month].add(spinId);
-  });
-
-  // Sort months descending (recent first)
-  const months = Array.from(monthSet).sort((a, b) => new Date('1 ' + b) - new Date('1 ' + a));
-  // Sort issues alphabetically
-  const issues = Array.from(issueSet).sort();
-
-  // Build header row with onclick and pointer cursor for sorting
-  theadRow.innerHTML = '<th onclick="sortMatrixTable(this)" style="cursor:pointer">Issue</th>' +
-    months.map(m => `<th onclick="sortMatrixTable(this)" style="cursor:pointer">${m}</th>`).join('');
-
-  // Build body rows
-  tbody.innerHTML = '';
-  issues.forEach(issue => {
-    const rowCells = months.map(month => {
-      const count = issueMonthMap[issue][month] ? issueMonthMap[issue][month].size : 0;
-      return `<td>${count}</td>`;
-    });
-    tbody.innerHTML += `<tr><td>${issue}</td>${rowCells.join('')}</tr>`;
-  });
-}
-
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -597,47 +576,6 @@ function sortTable(header) {
   tbody.innerHTML = '';
   rows.forEach(r => tbody.appendChild(r));
   Array.from(header.parentNode.children).forEach(th => th !== header && th.classList.remove('desc'));
-}
-
-function sortMatrixTable(header) {
-  const table = header.closest('table');
-  const tbody = table.querySelector('tbody');
-  const index = Array.from(header.parentNode.children).indexOf(header);
-  const rows = Array.from(tbody.querySelectorAll('tr'));
-  const isIssueCol = index === 0;
-  const currentAsc = header.classList.contains('asc');
-  const currentDesc = header.classList.contains('desc');
-
-  // Remove asc/desc classes from all headers
-  Array.from(header.parentNode.children).forEach(th => {
-    th.classList.remove('asc', 'desc');
-  });
-
-  // Toggle sort direction
-  const asc = !currentAsc;
-
-  header.classList.toggle('asc', asc);
-  header.classList.toggle('desc', !asc);
-
-  rows.sort((a, b) => {
-    const valA = a.children[index].textContent.trim();
-    const valB = b.children[index].textContent.trim();
-
-    if (isIssueCol) {
-      // Sort by Issue name (string)
-      if (valA < valB) return asc ? -1 : 1;
-      if (valA > valB) return asc ? 1 : -1;
-      return 0;
-    } else {
-      // Sort by numeric count
-      const numA = parseInt(valA) || 0;
-      const numB = parseInt(valB) || 0;
-      return asc ? numA - numB : numB - numA;
-    }
-  });
-
-  // Re-append rows in sorted order
-  rows.forEach(row => tbody.appendChild(row));
 }
 
 function exportTableToCSV(filename) {
