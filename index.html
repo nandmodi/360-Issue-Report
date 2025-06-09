@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <style>
+  /* Same styling as before */
   body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }
   .header-bar { position: fixed; top: 0; left: 0; right: 0; background: #fff; padding: 10px 0; text-align: center; font-weight: bold; font-size: 22px; z-index: 10000; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
   .tabs { position: fixed; top: 48px; left: 0; right: 0; background: #fff; display: flex; border-bottom: 2px solid #ccc; z-index: 10000; }
@@ -385,7 +386,14 @@
       matrix[sev][month] = (matrix[sev][month] || 0) + 1;
     });
 
-    const colors = ['#FF6384', '#36A2EB', '#4BC0C0', '#9966FF'];
+    // Updated color map: Blocker is red
+    const colorsMap = {
+      Blocker: '#FF0000',  // red
+      High: '#FF6384',
+      Low: '#36A2EB'
+    };
+    const colors = severities.map(sev => colorsMap[sev] || '#000000');
+
     const datasets = severities.map((sev, i) => ({
       label: sev,
       data: months.map(m => {
@@ -393,7 +401,7 @@
         const total = totalPerMonth[m] || 1;
         return ((count / total) * 100).toFixed(1);
       }),
-      borderColor: colors[i % colors.length],
+      borderColor: colors[i],
       backgroundColor: 'transparent',
       fill: false,
       tension: 0.3,
@@ -569,7 +577,6 @@
     const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
     const severities = Array.from(severitiesSet);
 
-    // Add sorting handlers on each header cell
     header.innerHTML = '<th onclick="sortTable(this)">Severity</th>' + months.map(m => `<th onclick="sortTable(this)">${m}</th>`).join('');
 
     const totalsPerMonth = {};
@@ -608,7 +615,6 @@
     const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
     const issues = Array.from(issuesSet);
 
-    // Add sorting handlers on each header cell
     header.innerHTML = '<th onclick="sortTable(this)">Issue</th>' + months.map(m => `<th onclick="sortTable(this)">${m}</th>`).join('');
 
     const totalsPerMonth = {};
@@ -637,7 +643,6 @@
     });
   }
 
-  // Sort table function supports numeric inside cell and toggles asc/desc
   function sortTable(header) {
     const table = header.closest('table');
     const tbody = table.querySelector('tbody');
@@ -649,19 +654,16 @@
       const valA = a.children[index].textContent.trim();
       const valB = b.children[index].textContent.trim();
 
-      // Check if numeric with % in brackets
       const regex = /^(\d+)(?:\s*\(\d+\.?\d*%\))?$/;
       const matchA = valA.match(regex);
       const matchB = valB.match(regex);
 
       if(matchA && matchB) {
-        // Sort by count number
         const numA = parseInt(matchA[1],10);
         const numB = parseInt(matchB[1],10);
         return desc ? numB - numA : numA - numB;
       }
 
-      // Fallback string sort
       if (valA < valB) return desc ? 1 : -1;
       if (valA > valB) return desc ? -1 : 1;
       return 0;
@@ -674,7 +676,6 @@
     });
   }
 
-  // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
