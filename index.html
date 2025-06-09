@@ -72,7 +72,6 @@
     .iframe-box { flex: 2; }
     iframe { width: 100%; height: 300px; border: none; border-radius: 10px; }
     .clickable { color: blue; text-decoration: underline; cursor: pointer; }
-
     #severityMonthlySummarySection {
       max-width: 900px;
       margin: auto 0 20px;
@@ -214,7 +213,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script>
-  // Dummy data — replace this with your actual data load
   const dummyData = [
     { Spin_id: 'S1', Enterprise: 'EntA', Month: 'May 2025', Severity: 'Blocker', Issue: 'Issue1', Product_Type: 'Type1', QC: 'QC1' },
     { Spin_id: 'S2', Enterprise: 'EntB', Month: 'May 2025', Severity: 'High', Issue: 'Issue2', Product_Type: 'Type2', QC: 'QC2' },
@@ -229,7 +227,6 @@
   let globalData = dummyData;
   let totalDataGlobal = dummyData;
 
-  // Populate filters dropdowns
   function populateFilters(data) {
     const config = {
       monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
@@ -246,7 +243,6 @@
     });
   }
 
-  // Filter data and render all views
   function applyFilters() {
     const filters = {
       Month: document.getElementById('monthFilter').value,
@@ -287,7 +283,6 @@
     renderSeverityTrendChart(months, severityMonthCounts);
   }
 
-  // Render functions
   function renderIssueTable(data) {
     const tbody = document.getElementById('issueSummary').querySelector('tbody');
     const issueMap = {};
