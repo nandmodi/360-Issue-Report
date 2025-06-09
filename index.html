@@ -343,8 +343,7 @@
     document.getElementById('lowIssues').textContent = data.filter(d => d.Severity === 'Low').length;
   }
 
-  // Dashboard renderers
-
+  // Updated Issue Table with count and percentage
   function renderIssueTable(data) {
     const tbody = document.getElementById('issueSummary').querySelector('tbody');
     const issueMap = {};
@@ -359,13 +358,14 @@
     const total = data.length;
     Object.entries(issueMap).forEach(([issue, s]) => {
       tbody.innerHTML += `<tr><td>${issue}</td>
-        <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
-        <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
-        <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
-        <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
+        <td>${s.Total} <span style="font-size:0.6em; color:#666;">(${((s.Total / total) * 100).toFixed(1)}%)</span></td>
+        <td>${s.Blocker} <span style="font-size:0.6em; color:#666;">(${((s.Blocker / s.Total) * 100).toFixed(1)}%)</span></td>
+        <td>${s.High} <span style="font-size:0.6em; color:#666;">(${((s.High / s.Total) * 100).toFixed(1)}%)</span></td>
+        <td>${s.Low} <span style="font-size:0.6em; color:#666;">(${((s.Low / s.Total) * 100).toFixed(1)}%)</span></td></tr>`;
     });
   }
 
+  // Updated Enterprise Table with count and percentage
   function renderEnterpriseIssueTable(data) {
     const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
     const enterpriseMap = {};
@@ -380,10 +380,10 @@
     const total = data.length;
     Object.entries(enterpriseMap).forEach(([ent, s]) => {
       tbody.innerHTML += `<tr><td>${ent}</td>
-        <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
-        <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
-        <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
-        <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
+        <td>${s.Total} <span style="font-size:0.6em; color:#666;">(${((s.Total / total) * 100).toFixed(1)}%)</span></td>
+        <td>${s.Blocker} <span style="font-size:0.6em; color:#666;">(${((s.Blocker / s.Total) * 100).toFixed(1)}%)</span></td>
+        <td>${s.High} <span style="font-size:0.6em; color:#666;">(${((s.High / s.Total) * 100).toFixed(1)}%)</span></td>
+        <td>${s.Low} <span style="font-size:0.6em; color:#666;">(${((s.Low / s.Total) * 100).toFixed(1)}%)</span></td></tr>`;
     });
   }
 
