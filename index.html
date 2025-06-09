@@ -343,7 +343,7 @@
     document.getElementById('lowIssues').textContent = data.filter(d => d.Severity === 'Low').length;
   }
 
-  // Dashboard tab renderers
+  // Dashboard renderers
 
   function renderIssueTable(data) {
     const tbody = document.getElementById('issueSummary').querySelector('tbody');
@@ -448,11 +448,9 @@
     });
   }
 
-  // Summary tab renderers
-
   function renderSeverityTrendChart(data) {
     const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
-    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + a) - new Date('1 ' + b));
+    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
 
     const severitiesSet = new Set(data.map(d => d.Severity).filter(Boolean));
     const severities = Array.from(severitiesSet);
@@ -497,9 +495,10 @@
     });
   }
 
+  // Interactive Issue Trend Chart with "All Issues" button
   function renderIssueTrendChart(data) {
     const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
-    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + a) - new Date('1 ' + b));
+    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
 
     const issuesSet = new Set(data.map(d => d.Issue).filter(Boolean));
     const issues = Array.from(issuesSet);
@@ -512,7 +511,7 @@
       matrix[issue][month] = (matrix[issue][month] || 0) + 1;
     });
 
-    const colors = ['#FF9F40', '#9966FF', '#FFCD56', '#4BC0C0', '#36A2EB'];
+    const colors = ['#FF9F40', '#9966FF', '#FFCD56', '#4BC0C0', '#36A2EB', '#FF6384', '#800000', '#008000'];
     const datasets = issues.map((issue, i) => ({
       label: issue,
       data: months.map(m => matrix[issue]?.[m] || 0),
@@ -522,17 +521,69 @@
       tension: 0.3,
       pointRadius: 5,
       pointHoverRadius: 7,
+      hidden: false
     }));
+
+    // Add "All Issues" dummy dataset at front (not drawn)
+    datasets.unshift({
+      label: 'All Issues',
+      data: new Array(months.length).fill(null),
+      borderColor: '#000000',
+      backgroundColor: 'transparent',
+      fill: false,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      hidden: false,
+    });
 
     const ctx = document.getElementById('issueTrendChart').getContext('2d');
     if(issueTrendChartInstance) issueTrendChartInstance.destroy();
+
     issueTrendChartInstance = new Chart(ctx, {
       type: 'line',
       data: { labels: months, datasets },
       options: {
         responsive: true,
         plugins: {
-          legend: { position: 'top' },
+          legend: {
+            position: 'top',
+            labels: {
+              filter: (legendItem) => legendItem.text !== '',
+            },
+            onClick: (e, legendItem, legend) => {
+              const chart = legend.chart;
+              const index = legendItem.datasetIndex;
+
+              if (index === 0) {
+                // All Issues clicked: show all except dummy
+                chart.data.datasets.forEach((ds, i) => {
+                  if (i === 0) return;
+                  ds.hidden = false;
+                });
+                chart.update();
+              } else {
+                // Toggle selected dataset visibility
+                const selectedDataset = chart.data.datasets[index];
+                const isHidden = selectedDataset.hidden;
+                const visibleCount = chart.data.datasets.filter(ds => !ds.hidden && ds !== chart.data.datasets[0]).length;
+
+                if (isHidden || visibleCount !== 1) {
+                  // Show only selected dataset
+                  chart.data.datasets.forEach((ds, i) => {
+                    if (i === 0) return;
+                    ds.hidden = i !== index;
+                  });
+                } else {
+                  // Currently only this dataset visible, so show all
+                  chart.data.datasets.forEach((ds, i) => {
+                    if (i === 0) return;
+                    ds.hidden = false;
+                  });
+                }
+                chart.update();
+              }
+            }
+          },
           tooltip: { mode: 'index', intersect: false },
         },
         interaction: { mode: 'nearest', intersect: false },
@@ -544,6 +595,7 @@
     });
   }
 
+  // Updated Severity Details Table with percentages
   function renderSeverityDetailsTable(data) {
     const header = document.getElementById('severityDetailsHeader');
     const tbody = document.getElementById('severityDetailsBody');
@@ -551,10 +603,17 @@
     const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
     const severitiesSet = new Set(data.map(d => d.Severity).filter(Boolean));
 
-    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + a) - new Date('1 ' + b));
+    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
     const severities = Array.from(severitiesSet);
 
     header.innerHTML = '<th>Severity</th>' + months.map(m => `<th>${m}</th>`).join('');
+
+    // Calculate totals per month for percentage
+    const totalsPerMonth = {};
+    data.forEach(row => {
+      const month = row.Month || 'Unknown';
+      totalsPerMonth[month] = (totalsPerMonth[month] || 0) + 1;
+    });
 
     const matrix = {};
     data.forEach(row => {
@@ -566,11 +625,17 @@
 
     tbody.innerHTML = '';
     severities.forEach(sev => {
-      const row = months.map(m => matrix[sev]?.[m] || 0);
-      tbody.innerHTML += `<tr><td>${sev}</td>${row.map(v => `<td>${v}</td>`).join('')}</tr>`;
+      const rowCells = months.map(m => {
+        const count = matrix[sev]?.[m] || 0;
+        const total = totalsPerMonth[m] || 1; // avoid div by zero
+        const percent = ((count / total) * 100).toFixed(1);
+        return `<td>${count} <span style="font-size:0.6em; color:#666;">(${percent}%)</span></td>`;
+      });
+      tbody.innerHTML += `<tr><td>${sev}</td>${rowCells.join('')}</tr>`;
     });
   }
 
+  // Updated Issue Details Table with percentages
   function renderIssueDetailsTable(data) {
     const header = document.getElementById('issueDetailsHeader');
     const tbody = document.getElementById('issueDetailsBody');
@@ -578,10 +643,17 @@
     const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
     const issuesSet = new Set(data.map(d => d.Issue).filter(Boolean));
 
-    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + a) - new Date('1 ' + b));
+    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
     const issues = Array.from(issuesSet);
 
     header.innerHTML = '<th>Issue</th>' + months.map(m => `<th>${m}</th>`).join('');
+
+    // Calculate totals per month for percentage
+    const totalsPerMonth = {};
+    data.forEach(row => {
+      const month = row.Month || 'Unknown';
+      totalsPerMonth[month] = (totalsPerMonth[month] || 0) + 1;
+    });
 
     const matrix = {};
     data.forEach(row => {
@@ -593,8 +665,13 @@
 
     tbody.innerHTML = '';
     issues.forEach(issue => {
-      const row = months.map(m => matrix[issue]?.[m] || 0);
-      tbody.innerHTML += `<tr><td>${issue}</td>${row.map(v => `<td>${v}</td>`).join('')}</tr>`;
+      const rowCells = months.map(m => {
+        const count = matrix[issue]?.[m] || 0;
+        const total = totalsPerMonth[m] || 1; // avoid div by zero
+        const percent = ((count / total) * 100).toFixed(1);
+        return `<td>${count} <span style="font-size:0.6em; color:#666;">(${percent}%)</span></td>`;
+      });
+      tbody.innerHTML += `<tr><td>${issue}</td>${rowCells.join('')}</tr>`;
     });
   }
 
