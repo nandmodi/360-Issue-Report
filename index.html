@@ -228,32 +228,16 @@
   </div>
 
   <div class="summary-tables">
-    <h3>Severity Details</h3>
+    <h3>Severity Details (Month-wise)</h3>
     <table id="severityDetailsTable">
-      <thead>
-        <tr>
-          <th>Severity</th>
-          <th onclick="sortTable(this)">Total</th>
-          <th onclick="sortTable(this)">Blocker</th>
-          <th onclick="sortTable(this)">High</th>
-          <th onclick="sortTable(this)">Low</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
+      <thead><tr id="severityDetailsHeader"><th>Severity</th></tr></thead>
+      <tbody id="severityDetailsBody"></tbody>
     </table>
 
-    <h3>Issue Details</h3>
+    <h3>Issue Details (Month-wise)</h3>
     <table id="issueDetailsTable">
-      <thead>
-        <tr>
-          <th>Issue</th>
-          <th onclick="sortTable(this)">Total</th>
-          <th onclick="sortTable(this)">Blocker</th>
-          <th onclick="sortTable(this)">High</th>
-          <th onclick="sortTable(this)">Low</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
+      <thead><tr id="issueDetailsHeader"><th>Issue</th></tr></thead>
+      <tbody id="issueDetailsBody"></tbody>
     </table>
   </div>
 </div>
@@ -264,6 +248,8 @@
 
   let severityTrendChartInstance = null;
   let issueTrendChartInstance = null;
+  let pieChartInstance = null;
+  let barChartInstance = null;
 
   async function loadAndRender() {
     const [qcData, totalData] = await Promise.all([
@@ -357,7 +343,8 @@
     document.getElementById('lowIssues').textContent = data.filter(d => d.Severity === 'Low').length;
   }
 
-  // Existing render functions for dashboard tables and charts
+  // Dashboard tab renderers
+
   function renderIssueTable(data) {
     const tbody = document.getElementById('issueSummary').querySelector('tbody');
     const issueMap = {};
@@ -416,8 +403,8 @@
     data.forEach(row => sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1);
     const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
     const ctx = document.getElementById('severityPie').getContext('2d');
-    if (window.pieChart) window.pieChart.destroy();
-    window.pieChart = new Chart(ctx, {
+    if (pieChartInstance) pieChartInstance.destroy();
+    pieChartInstance = new Chart(ctx, {
       type: 'pie',
       data: {
         labels: Object.keys(sevCount),
@@ -444,8 +431,8 @@
     });
     const total = Object.values(issueCounts).reduce((a, b) => a + b, 0);
     const ctx = document.getElementById('issueChart').getContext('2d');
-    if (window.barChart) window.barChart.destroy();
-    window.barChart = new Chart(ctx, {
+    if (barChartInstance) barChartInstance.destroy();
+    barChartInstance = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: Object.keys(issueCounts),
@@ -461,7 +448,8 @@
     });
   }
 
-  // New render for Summary tab charts and tables
+  // Summary tab renderers
+
   function renderSeverityTrendChart(data) {
     const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
     const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + a) - new Date('1 ' + b));
@@ -557,47 +545,56 @@
   }
 
   function renderSeverityDetailsTable(data) {
-    const tbody = document.getElementById('severityDetailsTable').querySelector('tbody');
-    const map = {};
+    const header = document.getElementById('severityDetailsHeader');
+    const tbody = document.getElementById('severityDetailsBody');
+
+    const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
+    const severitiesSet = new Set(data.map(d => d.Severity).filter(Boolean));
+
+    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + a) - new Date('1 ' + b));
+    const severities = Array.from(severitiesSet);
+
+    header.innerHTML = '<th>Severity</th>' + months.map(m => `<th>${m}</th>`).join('');
+
+    const matrix = {};
     data.forEach(row => {
       const sev = row.Severity || 'Low';
-      if (!map[sev]) map[sev] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-      map[sev][sev]++;
-      map[sev].Total++;
+      const month = row.Month || 'Unknown';
+      if (!matrix[sev]) matrix[sev] = {};
+      matrix[sev][month] = (matrix[sev][month] || 0) + 1;
     });
+
     tbody.innerHTML = '';
-    const total = data.length;
-    Object.entries(map).forEach(([sev, counts]) => {
-      tbody.innerHTML += `<tr>
-        <td>${sev}</td>
-        <td><b>${((counts.Total / total) * 100).toFixed(1)}%</b> (${counts.Total})</td>
-        <td><b>${((counts.Blocker / counts.Total) * 100).toFixed(1)}%</b> (${counts.Blocker || 0})</td>
-        <td><b>${((counts.High / counts.Total) * 100).toFixed(1)}%</b> (${counts.High || 0})</td>
-        <td><b>${((counts.Low / counts.Total) * 100).toFixed(1)}%</b> (${counts.Low || 0})</td>
-      </tr>`;
+    severities.forEach(sev => {
+      const row = months.map(m => matrix[sev]?.[m] || 0);
+      tbody.innerHTML += `<tr><td>${sev}</td>${row.map(v => `<td>${v}</td>`).join('')}</tr>`;
     });
   }
 
   function renderIssueDetailsTable(data) {
-    const tbody = document.getElementById('issueDetailsTable').querySelector('tbody');
-    const map = {};
+    const header = document.getElementById('issueDetailsHeader');
+    const tbody = document.getElementById('issueDetailsBody');
+
+    const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
+    const issuesSet = new Set(data.map(d => d.Issue).filter(Boolean));
+
+    const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + a) - new Date('1 ' + b));
+    const issues = Array.from(issuesSet);
+
+    header.innerHTML = '<th>Issue</th>' + months.map(m => `<th>${m}</th>`).join('');
+
+    const matrix = {};
     data.forEach(row => {
       const issue = row.Issue || 'Other';
-      const sev = row.Severity || 'Low';
-      if (!map[issue]) map[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-      map[issue][sev]++;
-      map[issue].Total++;
+      const month = row.Month || 'Unknown';
+      if (!matrix[issue]) matrix[issue] = {};
+      matrix[issue][month] = (matrix[issue][month] || 0) + 1;
     });
+
     tbody.innerHTML = '';
-    const total = data.length;
-    Object.entries(map).forEach(([issue, counts]) => {
-      tbody.innerHTML += `<tr>
-        <td>${issue}</td>
-        <td><b>${((counts.Total / total) * 100).toFixed(1)}%</b> (${counts.Total})</td>
-        <td><b>${((counts.Blocker / counts.Total) * 100).toFixed(1)}%</b> (${counts.Blocker || 0})</td>
-        <td><b>${((counts.High / counts.Total) * 100).toFixed(1)}%</b> (${counts.High || 0})</td>
-        <td><b>${((counts.Low / counts.Total) * 100).toFixed(1)}%</b> (${counts.Low || 0})</td>
-      </tr>`;
+    issues.forEach(issue => {
+      const row = months.map(m => matrix[issue]?.[m] || 0);
+      tbody.innerHTML += `<tr><td>${issue}</td>${row.map(v => `<td>${v}</td>`).join('')}</tr>`;
     });
   }
 
@@ -618,12 +615,11 @@
     });
   }
 
-  // Tabs switching logic
+  // Tabs switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-
       document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
       const id = tab.getAttribute('data-tab');
       document.getElementById(id).style.display = 'block';
