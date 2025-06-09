@@ -90,11 +90,13 @@
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       max-height: 600px;
+      overflow-x: auto; /* allow horizontal scroll */
       overflow-y: auto;
     }
     #issueMonthlySummarySection table {
       width: 100%;
       border-collapse: collapse;
+      white-space: nowrap;
     }
     #issueMonthlySummarySection th, #issueMonthlySummarySection td {
       padding: 8px;
@@ -211,14 +213,13 @@
       </table>
     </div>
 
-    <h2 style="text-align:center; margin-bottom: 20px;">Issue-wise Monthly Summary</h2>
+    <h2 style="text-align:center; margin-bottom: 20px;">Issue vs Month Summary</h2>
     <div id="issueMonthlySummarySection">
       <table id="issueMonthlySummaryTable">
         <thead>
-          <tr>
-            <th>Month</th>
+          <tr id="issueMonthlySummaryHeader">
             <th>Issue</th>
-            <th>Count of Spins</th>
+            <!-- Months columns dynamically inserted here -->
           </tr>
         </thead>
         <tbody></tbody>
@@ -517,7 +518,14 @@ function renderMonthlySummary(data) {
 
 function renderIssueWiseMonthlySummary(data) {
   const tbody = document.querySelector('#issueMonthlySummaryTable tbody');
-  const monthIssueMap = {};
+  const theadRow = document.getElementById('issueMonthlySummaryHeader');
+
+  // Build sets of unique months and issues
+  const monthSet = new Set();
+  const issueSet = new Set();
+
+  // Map of issue => { month => Set(spinIds) }
+  const issueMonthMap = {};
 
   data.forEach(row => {
     const month = row['Month'] || 'Unknown';
@@ -525,24 +533,30 @@ function renderIssueWiseMonthlySummary(data) {
     const spinId = (row['Spin_id'] || '').trim();
     if (!spinId) return;
 
-    if (!monthIssueMap[month]) monthIssueMap[month] = {};
-    if (!monthIssueMap[month][issue]) monthIssueMap[month][issue] = new Set();
-    monthIssueMap[month][issue].add(spinId);
+    monthSet.add(month);
+    issueSet.add(issue);
+
+    if (!issueMonthMap[issue]) issueMonthMap[issue] = {};
+    if (!issueMonthMap[issue][month]) issueMonthMap[issue][month] = new Set();
+    issueMonthMap[issue][month].add(spinId);
   });
 
-  const months = Object.keys(monthIssueMap).sort((a, b) => new Date('1 ' + b) - new Date('1 ' + a));
+  // Sort months descending (recent first)
+  const months = Array.from(monthSet).sort((a, b) => new Date('1 ' + b) - new Date('1 ' + a));
+  // Sort issues alphabetically
+  const issues = Array.from(issueSet).sort();
 
+  // Build header row
+  theadRow.innerHTML = '<th>Issue</th>' + months.map(m => `<th>${m}</th>`).join('');
+
+  // Build body rows
   tbody.innerHTML = '';
-  months.forEach(month => {
-    const issues = monthIssueMap[month];
-    Object.keys(issues).sort().forEach(issue => {
-      const count = issues[issue].size;
-      tbody.innerHTML += `<tr>
-        <td>${month}</td>
-        <td>${issue}</td>
-        <td>${count}</td>
-      </tr>`;
+  issues.forEach(issue => {
+    const rowCells = months.map(month => {
+      const count = issueMonthMap[issue][month] ? issueMonthMap[issue][month].size : 0;
+      return `<td>${count}</td>`;
     });
+    tbody.innerHTML += `<tr><td>${issue}</td>${rowCells.join('')}</tr>`;
   });
 }
 
