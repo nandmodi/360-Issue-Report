@@ -218,11 +218,11 @@
 <div class="main-content tab-content" id="summaryTab" style="display:none;">
   <div class="chart-row">
     <div class="chart-container">
-      <h3>Severity Trend</h3>
+      <h3>Severity Trend (%)</h3>
       <canvas id="severityTrendChart"></canvas>
     </div>
     <div class="chart-container">
-      <h3>Issue Trend</h3>
+      <h3>Issue Trend (%)</h3>
       <canvas id="issueTrendChart"></canvas>
     </div>
   </div>
@@ -343,7 +343,8 @@
     document.getElementById('lowIssues').textContent = data.filter(d => d.Severity === 'Low').length;
   }
 
-  // Updated Issue Table with count and percentage
+  // Dashboard renderers
+
   function renderIssueTable(data) {
     const tbody = document.getElementById('issueSummary').querySelector('tbody');
     const issueMap = {};
@@ -358,14 +359,13 @@
     const total = data.length;
     Object.entries(issueMap).forEach(([issue, s]) => {
       tbody.innerHTML += `<tr><td>${issue}</td>
-        <td>${s.Total} <span style="font-size:0.6em; color:#666;">(${((s.Total / total) * 100).toFixed(1)}%)</span></td>
-        <td>${s.Blocker} <span style="font-size:0.6em; color:#666;">(${((s.Blocker / s.Total) * 100).toFixed(1)}%)</span></td>
-        <td>${s.High} <span style="font-size:0.6em; color:#666;">(${((s.High / s.Total) * 100).toFixed(1)}%)</span></td>
-        <td>${s.Low} <span style="font-size:0.6em; color:#666;">(${((s.Low / s.Total) * 100).toFixed(1)}%)</span></td></tr>`;
+        <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
+        <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
+        <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
+        <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
     });
   }
 
-  // Updated Enterprise Table with count and percentage
   function renderEnterpriseIssueTable(data) {
     const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
     const enterpriseMap = {};
@@ -380,10 +380,10 @@
     const total = data.length;
     Object.entries(enterpriseMap).forEach(([ent, s]) => {
       tbody.innerHTML += `<tr><td>${ent}</td>
-        <td>${s.Total} <span style="font-size:0.6em; color:#666;">(${((s.Total / total) * 100).toFixed(1)}%)</span></td>
-        <td>${s.Blocker} <span style="font-size:0.6em; color:#666;">(${((s.Blocker / s.Total) * 100).toFixed(1)}%)</span></td>
-        <td>${s.High} <span style="font-size:0.6em; color:#666;">(${((s.High / s.Total) * 100).toFixed(1)}%)</span></td>
-        <td>${s.Low} <span style="font-size:0.6em; color:#666;">(${((s.Low / s.Total) * 100).toFixed(1)}%)</span></td></tr>`;
+        <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
+        <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
+        <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
+        <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
     });
   }
 
@@ -455,18 +455,28 @@
     const severitiesSet = new Set(data.map(d => d.Severity).filter(Boolean));
     const severities = Array.from(severitiesSet);
 
+    const totalPerMonth = {};
+    data.forEach(row => {
+      const month = row.Month || 'Unknown';
+      totalPerMonth[month] = (totalPerMonth[month] || 0) + 1;
+    });
+
     const matrix = {};
     data.forEach(row => {
       const sev = row.Severity || 'Low';
       const month = row.Month || 'Unknown';
-      matrix[sev] = matrix[sev] || {};
+      if (!matrix[sev]) matrix[sev] = {};
       matrix[sev][month] = (matrix[sev][month] || 0) + 1;
     });
 
     const colors = ['#FF6384', '#36A2EB', '#4BC0C0', '#9966FF'];
     const datasets = severities.map((sev, i) => ({
       label: sev,
-      data: months.map(m => matrix[sev]?.[m] || 0),
+      data: months.map(m => {
+        const count = matrix[sev]?.[m] || 0;
+        const total = totalPerMonth[m] || 1;
+        return ((count / total) * 100).toFixed(1);
+      }),
       borderColor: colors[i % colors.length],
       backgroundColor: 'transparent',
       fill: false,
@@ -484,18 +494,34 @@
         responsive: true,
         plugins: {
           legend: { position: 'top' },
-          tooltip: { mode: 'index', intersect: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
+            }
+          },
+          datalabels: {
+            display: true,
+            formatter: value => `${value}%`,
+            color: '#000'
+          }
         },
         interaction: { mode: 'nearest', intersect: false },
         scales: {
-          y: { beginAtZero: true, title: { display: true, text: 'Count' } },
+          y: {
+            beginAtZero: true,
+            max: 100,
+            title: { display: true, text: 'Percentage (%)' },
+            ticks: { callback: val => val + '%' }
+          },
           x: { title: { display: true, text: 'Month' } }
         }
-      }
+      },
+      plugins: [ChartDataLabels]
     });
   }
 
-  // Interactive Issue Trend Chart with "All Issues" button
   function renderIssueTrendChart(data) {
     const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
     const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
@@ -503,18 +529,28 @@
     const issuesSet = new Set(data.map(d => d.Issue).filter(Boolean));
     const issues = Array.from(issuesSet);
 
+    const totalPerMonth = {};
+    data.forEach(row => {
+      const month = row.Month || 'Unknown';
+      totalPerMonth[month] = (totalPerMonth[month] || 0) + 1;
+    });
+
     const matrix = {};
     data.forEach(row => {
       const issue = row.Issue || 'Other';
       const month = row.Month || 'Unknown';
-      matrix[issue] = matrix[issue] || {};
+      if (!matrix[issue]) matrix[issue] = {};
       matrix[issue][month] = (matrix[issue][month] || 0) + 1;
     });
 
     const colors = ['#FF9F40', '#9966FF', '#FFCD56', '#4BC0C0', '#36A2EB', '#FF6384', '#800000', '#008000'];
     const datasets = issues.map((issue, i) => ({
       label: issue,
-      data: months.map(m => matrix[issue]?.[m] || 0),
+      data: months.map(m => {
+        const count = matrix[issue]?.[m] || 0;
+        const total = totalPerMonth[m] || 1;
+        return ((count / total) * 100).toFixed(1);
+      }),
       borderColor: colors[i % colors.length],
       backgroundColor: 'transparent',
       fill: false,
@@ -524,7 +560,6 @@
       hidden: false
     }));
 
-    // Add "All Issues" dummy dataset at front (not drawn)
     datasets.unshift({
       label: 'All Issues',
       data: new Array(months.length).fill(null),
@@ -555,26 +590,22 @@
               const index = legendItem.datasetIndex;
 
               if (index === 0) {
-                // All Issues clicked: show all except dummy
                 chart.data.datasets.forEach((ds, i) => {
                   if (i === 0) return;
                   ds.hidden = false;
                 });
                 chart.update();
               } else {
-                // Toggle selected dataset visibility
                 const selectedDataset = chart.data.datasets[index];
                 const isHidden = selectedDataset.hidden;
                 const visibleCount = chart.data.datasets.filter(ds => !ds.hidden && ds !== chart.data.datasets[0]).length;
 
                 if (isHidden || visibleCount !== 1) {
-                  // Show only selected dataset
                   chart.data.datasets.forEach((ds, i) => {
                     if (i === 0) return;
                     ds.hidden = i !== index;
                   });
                 } else {
-                  // Currently only this dataset visible, so show all
                   chart.data.datasets.forEach((ds, i) => {
                     if (i === 0) return;
                     ds.hidden = false;
@@ -584,18 +615,34 @@
               }
             }
           },
-          tooltip: { mode: 'index', intersect: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
+            }
+          },
+          datalabels: {
+            display: true,
+            formatter: value => `${value}%`,
+            color: '#000'
+          }
         },
         interaction: { mode: 'nearest', intersect: false },
         scales: {
-          y: { beginAtZero: true, title: { display: true, text: 'Count' } },
+          y: {
+            beginAtZero: true,
+            max: 100,
+            title: { display: true, text: 'Percentage (%)' },
+            ticks: { callback: val => val + '%' }
+          },
           x: { title: { display: true, text: 'Month' } }
         }
-      }
+      },
+      plugins: [ChartDataLabels]
     });
   }
 
-  // Updated Severity Details Table with percentages
   function renderSeverityDetailsTable(data) {
     const header = document.getElementById('severityDetailsHeader');
     const tbody = document.getElementById('severityDetailsBody');
@@ -608,7 +655,6 @@
 
     header.innerHTML = '<th>Severity</th>' + months.map(m => `<th>${m}</th>`).join('');
 
-    // Calculate totals per month for percentage
     const totalsPerMonth = {};
     data.forEach(row => {
       const month = row.Month || 'Unknown';
@@ -627,7 +673,7 @@
     severities.forEach(sev => {
       const rowCells = months.map(m => {
         const count = matrix[sev]?.[m] || 0;
-        const total = totalsPerMonth[m] || 1; // avoid div by zero
+        const total = totalsPerMonth[m] || 1;
         const percent = ((count / total) * 100).toFixed(1);
         return `<td>${count} <span style="font-size:0.6em; color:#666;">(${percent}%)</span></td>`;
       });
@@ -635,7 +681,6 @@
     });
   }
 
-  // Updated Issue Details Table with percentages
   function renderIssueDetailsTable(data) {
     const header = document.getElementById('issueDetailsHeader');
     const tbody = document.getElementById('issueDetailsBody');
@@ -648,7 +693,6 @@
 
     header.innerHTML = '<th>Issue</th>' + months.map(m => `<th>${m}</th>`).join('');
 
-    // Calculate totals per month for percentage
     const totalsPerMonth = {};
     data.forEach(row => {
       const month = row.Month || 'Unknown';
@@ -667,7 +711,7 @@
     issues.forEach(issue => {
       const rowCells = months.map(m => {
         const count = matrix[issue]?.[m] || 0;
-        const total = totalsPerMonth[m] || 1; // avoid div by zero
+        const total = totalsPerMonth[m] || 1;
         const percent = ((count / total) * 100).toFixed(1);
         return `<td>${count} <span style="font-size:0.6em; color:#666;">(${percent}%)</span></td>`;
       });
@@ -692,7 +736,6 @@
     });
   }
 
-  // Tabs switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
