@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>360 Issue Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -45,6 +45,7 @@
   </style>
 </head>
 <body>
+  <!-- PART 1 END -->
   <div class="header-bar">360 Issue Dashboard</div>
   <div class="tabs">
     <div class="tab active" data-tab="dashboardTab">Dashboard</div>
@@ -62,8 +63,8 @@
   <div class="summary-bar" id="summaryBar">
     <div>Total Marked Spin: <span id="markedSpin">0</span></div>
     <div>
-      <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">\uD83D\uDD04</button>
-      <button onclick="exportTableToCSV('spin-data.csv')" title="Export CSV" style="background:none;border:none;cursor:pointer;font-size:18px;">\uD83D\uDCE4</button>
+      <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">🔄</button>
+      <button onclick="exportTableToCSV('spin-data.csv')" title="Export CSV" style="background:none;border:none;cursor:pointer;font-size:18px;">📤</button>
     </div>
     <div>Total Received Spin: <span id="receivedSpin">0</span></div>
   </div>
@@ -76,82 +77,82 @@
     <div class="summary-item">Low Severity <span class="summary-value" id="lowIssues">0</span></div>
   </div>
   <div class="main-content tab-content active" id="dashboardTab">
-  <div class="chart-row">
-    <div class="chart-box issue"><canvas id="issueChart"></canvas></div>
-    <div class="chart-box pie"><canvas id="severityPie"></canvas></div>
+    <div class="chart-row">
+      <div class="chart-box issue"><canvas id="issueChart"></canvas></div>
+      <div class="chart-box pie"><canvas id="severityPie"></canvas></div>
+    </div>
+    <div class="dual-table-row">
+      <div class="full-width-table">
+        <h3>Issue</h3>
+        <table id="issueSummary">
+          <thead>
+            <tr>
+              <th>Issue</th>
+              <th onclick="sortTable(this)">Total</th>
+              <th onclick="sortTable(this)">Blocker</th>
+              <th onclick="sortTable(this)">High</th>
+              <th onclick="sortTable(this)">Low</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="full-width-table">
+        <h3>Enterprise</h3>
+        <table id="enterpriseSummary">
+          <thead>
+            <tr>
+              <th>Enterprise</th>
+              <th onclick="sortTable(this)">Total</th>
+              <th onclick="sortTable(this)">Blocker</th>
+              <th onclick="sortTable(this)">High</th>
+              <th onclick="sortTable(this)">Low</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="bottom-row">
+      <div class="table-box">
+        <table id="spinTable">
+          <thead>
+            <tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="iframe-box">
+        <iframe id="spinIframe" title="Spin Preview"></iframe>
+      </div>
+    </div>
   </div>
-  <div class="dual-table-row">
-    <div class="full-width-table">
-      <h3>Issue</h3>
-      <table id="issueSummary">
-        <thead>
-          <tr>
-            <th>Issue</th>
-            <th onclick="sortTable(this)">Total</th>
-            <th onclick="sortTable(this)">Blocker</th>
-            <th onclick="sortTable(this)">High</th>
-            <th onclick="sortTable(this)">Low</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="full-width-table">
-      <h3>Enterprise</h3>
-      <table id="enterpriseSummary">
-        <thead>
-          <tr>
-            <th>Enterprise</th>
-            <th onclick="sortTable(this)">Total</th>
-            <th onclick="sortTable(this)">Blocker</th>
-            <th onclick="sortTable(this)">High</th>
-            <th onclick="sortTable(this)">Low</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
-  <div class="bottom-row">
-    <div class="table-box">
-      <table id="spinTable">
-        <thead>
-          <tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="iframe-box">
-      <iframe id="spinIframe" title="Spin Preview"></iframe>
-    </div>
-  </div>
-</div>
   <div class="main-content tab-content" id="summaryTab">
-  <div class="chart-row">
-    <div class="chart-container">
-      <h3>Severity Trend (%)</h3>
-      <canvas id="severityTrendChart"></canvas>
+    <div class="chart-row">
+      <div class="chart-container">
+        <h3>Severity Trend (%)</h3>
+        <canvas id="severityTrendChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Issue Trend (%)</h3>
+        <canvas id="issueTrendChart"></canvas>
+      </div>
     </div>
-    <div class="chart-container">
-      <h3>Issue Trend (%)</h3>
-      <canvas id="issueTrendChart"></canvas>
+    <div class="summary-tables">
+      <h3>Severity Details (Month-wise)</h3>
+      <table id="severityDetailsTable">
+        <thead><tr id="severityDetailsHeader"><th onclick="sortTable(this)">Severity</th></tr></thead>
+        <tbody id="severityDetailsBody"></tbody>
+      </table>
+      <h3>Issue Details (Month-wise)</h3>
+      <table id="issueDetailsTable">
+        <thead><tr id="issueDetailsHeader"><th onclick="sortTable(this)">Issue</th></tr></thead>
+        <tbody id="issueDetailsBody"></tbody>
+      </table>
     </div>
   </div>
-  <div class="summary-tables">
-    <h3>Severity Details (Month-wise)</h3>
-    <table id="severityDetailsTable">
-      <thead><tr id="severityDetailsHeader"><th onclick="sortTable(this)">Severity</th></tr></thead>
-      <tbody id="severityDetailsBody"></tbody>
-    </table>
-    <h3>Issue Details (Month-wise)</h3>
-    <table id="issueDetailsTable">
-      <thead><tr id="issueDetailsHeader"><th onclick="sortTable(this)">Issue</th></tr></thead>
-      <tbody id="issueDetailsBody"></tbody>
-    </table>
-  </div>
-</div>
-  <script>
-
+<!-- PART 2 END -->
+<script>
 let globalData = [];
 let totalDataGlobal = [];
 
@@ -213,9 +214,9 @@ function applyFilters() {
   renderSpinTable(filteredMarked);
   renderPieChart(filteredMarked);
   renderBarChart(filteredMarked);
-  
+  renderSeverityTrendChart(filteredMarked);
+  renderIssueTrendChart(filteredMarked);
 }
-
 
 function renderIssueTable(data) {
   const tbody = document.getElementById('issueSummary').querySelector('tbody');
@@ -269,14 +270,94 @@ function renderSpinTable(data) {
     tbody.appendChild(tr);
   });
 }
+</script>
+<script>
 
+let pieChartInstance, barChartInstance, severityTrendChartInstance, issueTrendChartInstance;
+
+function populateFilters(data) {
+  const config = {
+    monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
+    enterpriseFilter: 'Enterprise', productTypeFilter: 'Product_Type', qcFilter: 'QC'
+  };
+  Object.entries(config).forEach(([id, key]) => {
+    const select = document.getElementById(id);
+    const selectedValue = select.value;
+    const defaultText = select.getAttribute('data-label') || key;
+    const options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
+    select.innerHTML = `<option value="">${defaultText}</option>` +
+      options.map(v => `<option value="${v}" ${v === selectedValue ? 'selected' : ''}>${v}</option>`).join('');
+    select.onchange = applyFilters;
+  });
+}
+
+function populateSummarySection(data) {
+  document.getElementById('totalSpins').textContent = data.length;
+  document.getElementById('uniqueIssues').textContent = new Set(data.map(d => d.Issue)).size;
+  document.getElementById('uniqueEnterprises').textContent = new Set(data.map(d => d.Enterprise)).size;
+  document.getElementById('blockerIssues').textContent = data.filter(d => d.Severity === 'Blocker').length;
+  document.getElementById('highIssues').textContent = data.filter(d => d.Severity === 'High').length;
+  document.getElementById('lowIssues').textContent = data.filter(d => d.Severity === 'Low').length;
+}
+
+// Add tab switch logic
+[...document.querySelectorAll('.tab')].forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    const id = tab.getAttribute('data-tab');
+    document.getElementById(id).classList.add('active');
+    const showFilters = id === 'dashboardTab';
+    document.getElementById('filtersSection').style.display = showFilters ? 'flex' : 'none';
+    document.getElementById('summaryBar').style.display = showFilters ? 'flex' : 'none';
+    document.getElementById('summarySection').style.display = showFilters ? 'flex' : 'none';
+  });
+});
+
+window.onload = loadAndRender;
+
+</script>
+function resetFilters() {
+  ['monthFilter', 'severityFilter', 'issueFilter', 'enterpriseFilter', 'productTypeFilter', 'qcFilter']
+    .forEach(id => document.getElementById(id).value = '');
+  applyFilters();
+}
+
+function exportTableToCSV(filename) {
+  const rows = Array.from(document.querySelectorAll('#spinTable tr'));
+  const csvContent = rows.map(row => Array.from(row.cells).map(cell => '"' + cell.textContent + '"').join(',')).join('
+');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+function sortTable(header) {
+  const table = header.closest('table');
+  const tbody = table.querySelector('tbody');
+  const index = Array.from(header.parentNode.children).indexOf(header);
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const desc = header.classList.toggle('desc');
+  rows.sort((a, b) => {
+    const valA = a.children[index].textContent.trim();
+    const valB = b.children[index].textContent.trim();
+    const numA = parseFloat(valA) || 0;
+    const numB = parseFloat(valB) || 0;
+    return desc ? numB - numA : numA - numB;
+  });
+  tbody.innerHTML = '';
+  rows.forEach(row => tbody.appendChild(row));
+}
 function renderPieChart(data) {
   const sevCount = { Blocker: 0, High: 0, Low: 0 };
   data.forEach(row => sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1);
   const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
   const ctx = document.getElementById('severityPie').getContext('2d');
-  if (window.pieChartInstance) window.pieChartInstance.destroy();
-  window.pieChartInstance = new Chart(ctx, {
+  if (pieChartInstance) pieChartInstance.destroy();
+  pieChartInstance = new Chart(ctx, {
     type: 'pie',
     data: {
       labels: Object.keys(sevCount),
@@ -303,8 +384,8 @@ function renderBarChart(data) {
   });
   const total = Object.values(issueCounts).reduce((a, b) => a + b, 0);
   const ctx = document.getElementById('issueChart').getContext('2d');
-  if (window.barChartInstance) window.barChartInstance.destroy();
-  window.barChartInstance = new Chart(ctx, {
+  if (barChartInstance) barChartInstance.destroy();
+  barChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: Object.keys(issueCounts),
@@ -320,71 +401,63 @@ function renderBarChart(data) {
   });
 }
 
-renderSeverityTrendChart(filteredMarked);
-renderIssueTrendChart(filteredMarked);
-
 function renderSeverityTrendChart(data) {
-  const ctx = document.getElementById('severityTrendChart').getContext('2d');
-  const grouped = {};
-  const monthOrder = [];
+  const months = [...new Set(data.map(row => row.Month))].filter(Boolean).sort();
+  const severities = ['Blocker', 'High', 'Low'];
+
+  const matrix = {};
+  severities.forEach(sev => matrix[sev] = {});
+
+  const totalPerMonth = {};
   data.forEach(row => {
-    const month = row.Month || 'Unknown';
-    const severity = row.Severity || 'Low';
-    if (!grouped[severity]) grouped[severity] = {};
-    if (!grouped[severity][month]) grouped[severity][month] = 0;
-    grouped[severity][month]++;
-    if (!monthOrder.includes(month)) monthOrder.push(month);
+    const month = row.Month;
+    const sev = row.Severity;
+    if (month && sev) {
+      totalPerMonth[month] = (totalPerMonth[month] || 0) + 1;
+      if (matrix[sev]) matrix[sev][month] = (matrix[sev][month] || 0) + 1;
+    }
   });
-  const totalByMonth = {};
-  data.forEach(row => {
-    const month = row.Month || 'Unknown';
-    totalByMonth[month] = (totalByMonth[month] || 0) + 1;
-  });
+
   const colors = { Blocker: '#FF0000', High: '#FF6384', Low: '#36A2EB' };
-  const datasets = Object.keys(grouped).map(severity => ({
-    label: severity,
-    data: monthOrder.map(month => ((grouped[severity][month] || 0) / (totalByMonth[month] || 1) * 100).toFixed(1)),
-    borderColor: colors[severity] || '#000000',
-    backgroundColor: 'transparent',
+
+  const datasets = severities.map(sev => ({
+    label: sev,
+    data: months.map(m => {
+      const count = matrix[sev][m] || 0;
+      const total = totalPerMonth[m] || 1;
+      return ((count / total) * 100).toFixed(1);
+    }),
+    borderColor: colors[sev],
     fill: false,
     tension: 0.3,
-    pointRadius: 5,
-    pointHoverRadius: 7
+    pointRadius: 4
   }));
-  if (window.severityTrendChartInstance) window.severityTrendChartInstance.destroy();
-  window.severityTrendChartInstance = new Chart(ctx, {
+
+  const ctx = document.getElementById('severityTrendChart').getContext('2d');
+  if (severityTrendChartInstance) severityTrendChartInstance.destroy();
+  severityTrendChartInstance = new Chart(ctx, {
     type: 'line',
-    data: { labels: monthOrder, datasets },
+    data: { labels: months, datasets },
     options: {
       responsive: true,
       plugins: {
-        legend: { position: 'top' },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-          callbacks: {
-            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
-          }
-        },
         datalabels: {
           display: true,
-          align: 'end',
+          align: 'top',
           anchor: 'end',
-          offset: 4,
-          formatter: value => `${value}%`,
-          color: '#000',
-          font: { size: 12 }
+          formatter: v => `${v}%`,
+          color: '#000'
         }
       },
-      interaction: { mode: 'nearest', intersect: false },
       scales: {
         y: {
           beginAtZero: true,
           max: 100,
-          title: { display: true, text: 'Percentage (%)' },
-          ticks: { callback: val => val + '%' }
+          title: { display: true, text: 'Percentage (%)' }
         },
-        x: { title: { display: true, text: 'Month' } }
+        x: {
+          title: { display: true, text: 'Month' }
+        }
       }
     },
     plugins: [ChartDataLabels]
@@ -392,118 +465,65 @@ function renderSeverityTrendChart(data) {
 }
 
 function renderIssueTrendChart(data) {
-  const ctx = document.getElementById('issueTrendChart').getContext('2d');
-  const grouped = {};
-  const monthOrder = [];
+  const months = [...new Set(data.map(row => row.Month))].filter(Boolean).sort();
+  const issues = [...new Set(data.map(row => row.Issue))].filter(Boolean);
+
+  const matrix = {};
+  issues.forEach(issue => matrix[issue] = {});
+
+  const totalPerMonth = {};
   data.forEach(row => {
-    const month = row.Month || 'Unknown';
-    const issue = row.Issue || 'Other';
-    if (!grouped[issue]) grouped[issue] = {};
-    if (!grouped[issue][month]) grouped[issue][month] = 0;
-    grouped[issue][month]++;
-    if (!monthOrder.includes(month)) monthOrder.push(month);
+    const month = row.Month;
+    const issue = row.Issue;
+    if (month && issue) {
+      totalPerMonth[month] = (totalPerMonth[month] || 0) + 1;
+      matrix[issue][month] = (matrix[issue][month] || 0) + 1;
+    }
   });
-  const totalByMonth = {};
-  data.forEach(row => {
-    const month = row.Month || 'Unknown';
-    totalByMonth[month] = (totalByMonth[month] || 0) + 1;
-  });
-  const colors = ['#FF9F40', '#9966FF', '#FFCD56', '#4BC0C0', '#36A2EB', '#FF6384', '#800000', '#008000'];
-  const issues = Object.keys(grouped);
+
+  const colorList = ['#FF9F40', '#9966FF', '#FFCD56', '#4BC0C0', '#36A2EB', '#FF6384'];
   const datasets = issues.map((issue, i) => ({
     label: issue,
-    data: monthOrder.map(month => ((grouped[issue][month] || 0) / (totalByMonth[month] || 1) * 100).toFixed(1)),
-    borderColor: colors[i % colors.length],
-    backgroundColor: 'transparent',
+    data: months.map(m => {
+      const count = matrix[issue][m] || 0;
+      const total = totalPerMonth[m] || 1;
+      return ((count / total) * 100).toFixed(1);
+    }),
+    borderColor: colorList[i % colorList.length],
     fill: false,
     tension: 0.3,
-    pointRadius: 5,
-    pointHoverRadius: 7,
-    hidden: false
+    pointRadius: 4
   }));
-  datasets.unshift({
-    label: 'All Issues',
-    data: new Array(monthOrder.length).fill(null),
-    borderColor: '#000000',
-    backgroundColor: 'transparent',
-    fill: false,
-    pointRadius: 0,
-    pointHoverRadius: 0,
-    hidden: false,
-  });
-  if (window.issueTrendChartInstance) window.issueTrendChartInstance.destroy();
-  window.issueTrendChartInstance = new Chart(ctx, {
+
+  const ctx = document.getElementById('issueTrendChart').getContext('2d');
+  if (issueTrendChartInstance) issueTrendChartInstance.destroy();
+  issueTrendChartInstance = new Chart(ctx, {
     type: 'line',
-    data: { labels: monthOrder, datasets },
+    data: { labels: months, datasets },
     options: {
       responsive: true,
       plugins: {
-        legend: {
-          position: 'top',
-          labels: {
-            filter: (legendItem) => legendItem.text !== '',
-          },
-          onClick: (e, legendItem, legend) => {
-            const chart = legend.chart;
-            const index = legendItem.datasetIndex;
-            if (index === 0) {
-              chart.data.datasets.forEach((ds, i) => {
-                if (i === 0) return;
-                ds.hidden = false;
-              });
-              chart.update();
-            } else {
-              const selectedDataset = chart.data.datasets[index];
-              const isHidden = selectedDataset.hidden;
-              const visibleCount = chart.data.datasets.filter(ds => !ds.hidden && ds !== chart.data.datasets[0]).length;
-              if (isHidden || visibleCount !== 1) {
-                chart.data.datasets.forEach((ds, i) => {
-                  if (i === 0) return;
-                  ds.hidden = i !== index;
-                });
-              } else {
-                chart.data.datasets.forEach((ds, i) => {
-                  if (i === 0) return;
-                  ds.hidden = false;
-                });
-              }
-              chart.update();
-            }
-          }
-        },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-          callbacks: {
-            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
-          }
-        },
         datalabels: {
           display: true,
-          align: 'end',
+          align: 'top',
           anchor: 'end',
-          offset: 4,
-          formatter: value => `${value}%`,
-          color: '#000',
-          font: { size: 12 }
+          formatter: v => `${v}%`,
+          color: '#000'
         }
       },
-      interaction: { mode: 'nearest', intersect: false },
       scales: {
         y: {
           beginAtZero: true,
           max: 100,
-          title: { display: true, text: 'Percentage (%)' },
-          ticks: { callback: val => val + '%' }
+          title: { display: true, text: 'Percentage (%)' }
         },
-        x: { title: { display: true, text: 'Month' } }
+        x: {
+          title: { display: true, text: 'Month' }
+        }
       }
     },
     plugins: [ChartDataLabels]
   });
 }
-window.onload = loadAndRender;
-  </script>
-</body>
+</script>
 </html>
-
