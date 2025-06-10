@@ -318,6 +318,8 @@ function populateSummarySection(data) {
 window.onload = loadAndRender;
 
 </script>
+<script>
+
 function resetFilters() {
   ['monthFilter', 'severityFilter', 'issueFilter', 'enterpriseFilter', 'productTypeFilter', 'qcFilter']
     .forEach(id => document.getElementById(id).value = '');
@@ -326,8 +328,7 @@ function resetFilters() {
 
 function exportTableToCSV(filename) {
   const rows = Array.from(document.querySelectorAll('#spinTable tr'));
-  const csvContent = rows.map(row => Array.from(row.cells).map(cell => '"' + cell.textContent + '"').join(',')).join('
-');
+  const csvContent = rows.map(row => Array.from(row.cells).map(cell => '"' + cell.textContent + '"').join(',')).join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -351,6 +352,7 @@ function sortTable(header) {
   tbody.innerHTML = '';
   rows.forEach(row => tbody.appendChild(row));
 }
+
 function renderPieChart(data) {
   const sevCount = { Blocker: 0, High: 0, Low: 0 };
   data.forEach(row => sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1);
@@ -402,42 +404,33 @@ function renderBarChart(data) {
 }
 
 function renderSeverityTrendChart(data) {
-  const months = [...new Set(data.map(row => row.Month))].filter(Boolean).sort();
-  const severities = ['Blocker', 'High', 'Low'];
-
-  const matrix = {};
-  severities.forEach(sev => matrix[sev] = {});
-
-  const totalPerMonth = {};
+  const months = [...new Set(data.map(d => d.Month))].filter(Boolean);
+  const severities = [...new Set(data.map(d => d.Severity))].filter(Boolean);
+  const totals = {}, matrix = {};
   data.forEach(row => {
     const month = row.Month;
     const sev = row.Severity;
-    if (month && sev) {
-      totalPerMonth[month] = (totalPerMonth[month] || 0) + 1;
-      if (matrix[sev]) matrix[sev][month] = (matrix[sev][month] || 0) + 1;
-    }
+    if (!totals[month]) totals[month] = 0;
+    totals[month]++;
+    if (!matrix[sev]) matrix[sev] = {};
+    if (!matrix[sev][month]) matrix[sev][month] = 0;
+    matrix[sev][month]++;
   });
-
-  const colors = { Blocker: '#FF0000', High: '#FF6384', Low: '#36A2EB' };
-
-  const datasets = severities.map(sev => ({
-    label: sev,
-    data: months.map(m => {
-      const count = matrix[sev][m] || 0;
-      const total = totalPerMonth[m] || 1;
-      return ((count / total) * 100).toFixed(1);
-    }),
-    borderColor: colors[sev],
-    fill: false,
-    tension: 0.3,
-    pointRadius: 4
-  }));
-
   const ctx = document.getElementById('severityTrendChart').getContext('2d');
   if (severityTrendChartInstance) severityTrendChartInstance.destroy();
   severityTrendChartInstance = new Chart(ctx, {
     type: 'line',
-    data: { labels: months, datasets },
+    data: {
+      labels: months,
+      datasets: severities.map(sev => ({
+        label: sev,
+        data: months.map(m => ((matrix[sev]?.[m] || 0) / (totals[m] || 1) * 100).toFixed(1)),
+        borderColor: sev === 'Blocker' ? '#FF0000' : sev === 'High' ? '#FF6384' : '#36A2EB',
+        fill: false,
+        tension: 0.3,
+        pointRadius: 4
+      }))
+    },
     options: {
       responsive: true,
       plugins: {
@@ -450,14 +443,8 @@ function renderSeverityTrendChart(data) {
         }
       },
       scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          title: { display: true, text: 'Percentage (%)' }
-        },
-        x: {
-          title: { display: true, text: 'Month' }
-        }
+        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' } },
+        x: { title: { display: true, text: 'Month' } }
       }
     },
     plugins: [ChartDataLabels]
@@ -465,41 +452,34 @@ function renderSeverityTrendChart(data) {
 }
 
 function renderIssueTrendChart(data) {
-  const months = [...new Set(data.map(row => row.Month))].filter(Boolean).sort();
-  const issues = [...new Set(data.map(row => row.Issue))].filter(Boolean);
-
-  const matrix = {};
-  issues.forEach(issue => matrix[issue] = {});
-
-  const totalPerMonth = {};
+  const months = [...new Set(data.map(d => d.Month))].filter(Boolean);
+  const issues = [...new Set(data.map(d => d.Issue))].filter(Boolean);
+  const totals = {}, matrix = {};
   data.forEach(row => {
     const month = row.Month;
     const issue = row.Issue;
-    if (month && issue) {
-      totalPerMonth[month] = (totalPerMonth[month] || 0) + 1;
-      matrix[issue][month] = (matrix[issue][month] || 0) + 1;
-    }
+    if (!totals[month]) totals[month] = 0;
+    totals[month]++;
+    if (!matrix[issue]) matrix[issue] = {};
+    if (!matrix[issue][month]) matrix[issue][month] = 0;
+    matrix[issue][month]++;
   });
-
-  const colorList = ['#FF9F40', '#9966FF', '#FFCD56', '#4BC0C0', '#36A2EB', '#FF6384'];
-  const datasets = issues.map((issue, i) => ({
-    label: issue,
-    data: months.map(m => {
-      const count = matrix[issue][m] || 0;
-      const total = totalPerMonth[m] || 1;
-      return ((count / total) * 100).toFixed(1);
-    }),
-    borderColor: colorList[i % colorList.length],
-    fill: false,
-    tension: 0.3,
-    pointRadius: 4
-  }));
-
+  const colors = ['#FF9F40', '#9966FF', '#FFCD56', '#4BC0C0', '#36A2EB', '#FF6384'];
   const ctx = document.getElementById('issueTrendChart').getContext('2d');
   if (issueTrendChartInstance) issueTrendChartInstance.destroy();
   issueTrendChartInstance = new Chart(ctx, {
     type: 'line',
-    data: { labels: months, datasets },
+    data: {
+      labels: months,
+      datasets: issues.map((issue, i) => ({
+        label: issue,
+        data: months.map(m => ((matrix[issue]?.[m] || 0) / (totals[m] || 1) * 100).toFixed(1)),
+        borderColor: colors[i % colors.length],
+        fill: false,
+        tension: 0.3,
+        pointRadius: 4
+      }))
+    },
     options: {
       responsive: true,
       plugins: {
@@ -512,14 +492,8 @@ function renderIssueTrendChart(data) {
         }
       },
       scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          title: { display: true, text: 'Percentage (%)' }
-        },
-        x: {
-          title: { display: true, text: 'Month' }
-        }
+        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' } },
+        x: { title: { display: true, text: 'Month' } }
       }
     },
     plugins: [ChartDataLabels]
