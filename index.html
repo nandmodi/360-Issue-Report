@@ -277,7 +277,7 @@
       issueMap[issue].Total++;
     });
     tbody.innerHTML = '';
-    <td><b>${((s.Total / totalReceived) * 100).toFixed(1)}%</b> (${s.Total})</td>
+    const total = data.length;
     Object.entries(issueMap).forEach(([issue, s]) => {
       tbody.innerHTML += `<tr><td>${issue}</td>
         <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
@@ -288,25 +288,48 @@
   }
 
   function renderEnterpriseIssueTable(data) {
-    const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
-    const enterpriseMap = {};
-    data.forEach(row => {
-      const ent = row['Enterprise'] || 'Unknown';
-      const sev = row['Severity'] || 'Low';
-      if (!enterpriseMap[ent]) enterpriseMap[ent] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-      enterpriseMap[ent][sev]++;
-      enterpriseMap[ent].Total++;
-    });
-    tbody.innerHTML = '';
-    const total = data.length;
-    Object.entries(enterpriseMap).forEach(([ent, s]) => {
-      tbody.innerHTML += `<tr><td>${ent}</td>
-        <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
+  const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
+  const enterpriseMap = {};
+
+  // Count per enterprise
+  data.forEach(row => {
+    const ent = row['Enterprise'] || 'Unknown';
+    const sev = row['Severity'] || 'Low';
+    if (!enterpriseMap[ent]) enterpriseMap[ent] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+    enterpriseMap[ent][sev]++;
+    enterpriseMap[ent].Total++;
+  });
+
+  // Get filters (excluding Issue)
+  const filters = {
+    Month: document.getElementById('monthFilter').value,
+    Product_Type: document.getElementById('productTypeFilter').value,
+    QC: document.getElementById('qcFilter').value
+  };
+
+  tbody.innerHTML = '';
+
+  Object.entries(enterpriseMap).forEach(([ent, s]) => {
+    const totalReceivedForEnt = new Set(
+      totalDataGlobal.filter(r =>
+        (!filters.Month || r['Month'] === filters.Month) &&
+        (!filters.Product_Type || r['Product_Type'] === filters.Product_Type) &&
+        (!filters.QC || r['QC'] === filters.QC) &&
+        r['Enterprise'] === ent
+      ).map(r => r['Spin_id'])
+    ).size;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${ent}</td>
+        <td><b>${((s.Total / totalReceivedForEnt) * 100).toFixed(1)}%</b> (${s.Total})</td>
         <td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> (${s.Blocker})</td>
         <td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> (${s.High})</td>
-        <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td></tr>`;
-    });
-  }
+        <td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> (${s.Low})</td>
+      </tr>`;
+  });
+}
+
 
   function renderSpinTable(data) {
     const tbody = document.getElementById('spinTable').querySelector('tbody');
@@ -344,30 +367,57 @@
     });
   }
 
-  function renderBarChart(data) {
-    const issueCounts = {};
-    data.forEach(row => {
-      const issue = row['Issue'] || 'Other';
-      issueCounts[issue] = (issueCounts[issue] || 0) + 1;
-    });
-    const total = Object.values(issueCounts).reduce((a, b) => a + b, 0);
-    const ctx = document.getElementById('issueChart').getContext('2d');
-    if (barChartInstance) barChartInstance.destroy();
-    barChartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: Object.keys(issueCounts),
-        datasets: [{ label: 'Issue %', data: Object.values(issueCounts).map(v => ((v / total) * 100).toFixed(1)), backgroundColor: '#007bff' }]
+ function renderBarChart(data) {
+  const issueCounts = {};
+  data.forEach(row => {
+    const issue = row['Issue'] || 'Other';
+    issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+  });
+
+  // Get filters
+  const filters = {
+    Month: document.getElementById('monthFilter').value,
+    Enterprise: document.getElementById('enterpriseFilter').value,
+    Product_Type: document.getElementById('productTypeFilter').value,
+    QC: document.getElementById('qcFilter').value
+  };
+
+  const totalReceived = new Set(
+    totalDataGlobal.filter(r =>
+      (!filters.Month || r['Month'] === filters.Month) &&
+      (!filters.Enterprise || r['Enterprise'] === filters.Enterprise) &&
+      (!filters.Product_Type || r['Product_Type'] === filters.Product_Type) &&
+      (!filters.QC || r['QC'] === filters.QC)
+    ).map(r => r['Spin_id'])
+  ).size;
+
+  const ctx = document.getElementById('issueChart').getContext('2d');
+  if (barChartInstance) barChartInstance.destroy();
+  barChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(issueCounts),
+      datasets: [{
+        label: 'Issue %',
+        data: Object.values(issueCounts).map(v => ((v / totalReceived) * 100).toFixed(1)),
+        backgroundColor: '#007bff'
+      }]
+    },
+    options: {
+      plugins: {
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          formatter: v => `${v}%`,
+          color: '#000'
+        }
       },
-      options: {
-        plugins: {
-          datalabels: { anchor: 'end', align: 'end', formatter: v => `${v}%`, color: '#000' }
-        },
-        scales: { y: { beginAtZero: true } }
-      },
-      plugins: [ChartDataLabels]
-    });
-  }
+      scales: { y: { beginAtZero: true } }
+    },
+    plugins: [ChartDataLabels]
+  });
+}
+
 
   function renderSeverityTrendChart(data) {
     const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
