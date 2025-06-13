@@ -119,8 +119,7 @@ function renderSpinTable(data) {
 function exportTableToCSV(filename) {
   const table = document.getElementById('spinTable');
   const rows = [...table.querySelectorAll('tr')].map(row => [...row.querySelectorAll('th,td')].map(cell => '"' + cell.innerText + '"').join(','));
-  const csv = rows.join("
-");
+  const csv = rows.join("\n");
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
