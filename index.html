@@ -74,6 +74,21 @@
   </div>
 </div>
 <script>
+async function loadAndRender() {
+  try {
+    const [qcData, totalData] = await Promise.all([
+      loadCSV('https://docs.google.com/spreadsheets/d/1JlcXL8X1VRxlRVGyTuLElsm9IgOiteT6amOEXrEx-jY/gviz/tq?tqx=out:csv&sheet=Data'),
+      loadCSV('https://docs.google.com/spreadsheets/d/1EiI4vOQ4Fcq80YaOxosEqFZ49sftVBH-jbp4xARqfWM/gviz/tq?tqx=out:csv&sheet=All-Data')
+    ]);
+    globalData = qcData;
+    totalDataGlobal = totalData;
+    applyFilters();
+  } catch (error) {
+    console.error('Error loading data:', error);
+    alert('Failed to load data. Please check your internet connection or sheet access.');
+  }
+}
+
 function loadCSV(url) {
   return fetch(url).then(res => res.text()).then(text =>
     new Promise(resolve => {
@@ -117,6 +132,8 @@ function exportTableToCSV(filename) {
     link.click();
     document.body.removeChild(link);
   }
+}
+}
 }
 }
 
