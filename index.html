@@ -118,14 +118,19 @@ function renderSpinTable(data) {
 }
 function exportTableToCSV(filename) {
   const table = document.getElementById('spinTable');
-  const rows = [...table.querySelectorAll('tr')].map(row => [...row.querySelectorAll('th,td')].map(cell => '"' + cell.innerText + '"').join(','));
-  const csv = rows.join("\n");
+  const rows = [...table.querySelectorAll('tr')].map(row =>
+    [...row.querySelectorAll('th,td')]
+      .map(cell => '"' + cell.innerText + '"')
+      .join(',')
+  );
+  const csv = rows.join("\n"); // ✅ fixed newline
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   a.click();
 }
+
 
 function renderBarChart(data, received) {
   const total = received.length || 1;
