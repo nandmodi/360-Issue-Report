@@ -277,7 +277,7 @@
       issueMap[issue].Total++;
     });
     tbody.innerHTML = '';
-    const total = data.length;
+    <td><b>${((s.Total / totalReceived) * 100).toFixed(1)}%</b> (${s.Total})</td>
     Object.entries(issueMap).forEach(([issue, s]) => {
       tbody.innerHTML += `<tr><td>${issue}</td>
         <td><b>${((s.Total / total) * 100).toFixed(1)}%</b> (${s.Total})</td>
