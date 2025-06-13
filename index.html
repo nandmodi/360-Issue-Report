@@ -5,74 +5,7 @@
 <title>360 Issue Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
-<script src="https://cdn.jsdelivr.net/npm/chart.js">function loadAndRender() {
-  const qcUrl = 'https://docs.google.com/spreadsheets/d/1JlcXL8X1VRxlRVGyTuLElsm9IgOiteT6amOEXrEx-jY/gviz/tq?tqx=out:csv&sheet=Data';
-  const totalUrl = 'https://docs.google.com/spreadsheets/d/1EiI4vOQ4Fcq80YaOxosEqFZ49sftVBH-jbp4xARqfWM/gviz/tq?tqx=out:csv&sheet=All-Data';
-  Promise.all([loadCSV(qcUrl), loadCSV(totalUrl)]).then(([qcData, totalData]) => {
-    window.globalData = qcData;
-    window.totalDataGlobal = totalData;
-    applyFilters();
-  });
-}
-
-function applyFilters() {
-  const filters = {
-    Month: document.getElementById('monthFilter').value,
-    Severity: document.getElementById('severityFilter').value,
-    Issue: document.getElementById('issueFilter').value,
-    Enterprise: document.getElementById('enterpriseFilter').value,
-    Product_Type: document.getElementById('productTypeFilter').value,
-    QC: document.getElementById('qcFilter').value
-  };
-
-  const markedMatch = row =>
-    (!filters.Month || row['Month'] === filters.Month) &&
-    (!filters.Severity || row['Severity'] === filters.Severity) &&
-    (!filters.Issue || row['Issue'] === filters.Issue) &&
-    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
-    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
-    (!filters.QC || row['QC'] === filters.QC);
-
-  const receivedMatch = row =>
-    (!filters.Month || row['Month'] === filters.Month) &&
-    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
-    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
-    (!filters.QC || row['QC'] === filters.QC);
-
-  const filteredMarked = window.globalData.filter(markedMatch);
-  const filteredReceived = window.totalDataGlobal.filter(receivedMatch);
-
-  document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
-  document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
-
-  document.getElementById('totalSpins').textContent = filteredMarked.length;
-  document.getElementById('uniqueIssues').textContent = new Set(filteredMarked.map(d => d.Issue)).size;
-  document.getElementById('uniqueEnterprises').textContent = new Set(filteredMarked.map(d => d.Enterprise)).size;
-  document.getElementById('blockerIssues').textContent = filteredMarked.filter(d => d.Severity === 'Blocker').length;
-  document.getElementById('highIssues').textContent = filteredMarked.filter(d => d.Severity === 'High').length;
-  document.getElementById('lowIssues').textContent = filteredMarked.filter(d => d.Severity === 'Low').length;
-
-  populateFilters(window.globalData);
-  renderIssueTable(filteredMarked);
-}
-
-function populateFilters(data) {
-  const config = {
-    monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
-    enterpriseFilter: 'Enterprise', productTypeFilter: 'Product_Type', qcFilter: 'QC'
-  };
-  Object.entries(config).forEach(([id, key]) => {
-    const select = document.getElementById(id);
-    const selectedValue = select.value;
-    const defaultText = select.getAttribute('data-label') || key;
-    const options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
-    select.innerHTML = `<option value="">${defaultText}</option>` +
-      options.map(v => `<option value="${v}" ${v === selectedValue ? 'selected' : ''}>${v}</option>`).join('');
-    select.onchange = applyFilters;
-  });
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <style>
@@ -185,6 +118,7 @@ function exportTableToCSV(filename) {
     document.body.removeChild(link);
   }
 }
+}
 
 function renderIssueTable(data) {
   const tbody = document.getElementById('issueSummary').querySelector('tbody');
@@ -267,23 +201,9 @@ window.onload = function() {
   loadAndRender();
 };
 
-renderEnterpriseIssueTable(filteredMarked);
-  renderSpinTable(filteredMarked);
-  renderPieChart(filteredMarked);
-  renderBarChart(filteredMarked);
-  renderSeverityTrendChart(filteredMarked);
-  renderIssueTrendChart(filteredMarked);
-  renderSeverityDetailsTable(filteredMarked);
-  renderIssueDetailsTable(filteredMarked);
 
-renderEnterpriseIssueTable(filteredMarked);
-renderSpinTable(filteredMarked);
-renderPieChart(filteredMarked);
-renderBarChart(filteredMarked);
-renderSeverityTrendChart(filteredMarked);
-renderIssueTrendChart(filteredMarked);
-renderSeverityDetailsTable(filteredMarked);
-renderIssueDetailsTable(filteredMarked);
+
+
 
 
 function renderEnterpriseIssueTable(data) {
