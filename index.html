@@ -1,317 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>360 Issue Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>Image QC Tool</title>
   <link rel="icon" href="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/favicon.ico" type="image/x-icon" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Logic block for dashboard operations, including filtering, charting, table rendering, and export.
-
-let globalData = [];
-let totalDataGlobal = [];
-
-async function loadCSV(url) {
-  const res = await fetch(url);
-  const text = await res.text();
-  return new Promise(resolve => {
-    Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      complete: results => resolve(results.data)
-    });
-  });
-}
-
-async function loadAndRender() {
-  globalData = await loadCSV('https://docs.google.com/spreadsheets/d/1JlcXL8X1VRxlRVGyTuLElsm9IgOiteT6amOEXrEx-jY/gviz/tq?tqx=out:csv&sheet=Data');
-  totalDataGlobal = await loadCSV('https://docs.google.com/spreadsheets/d/1EiI4vOQ4Fcq80YaOxosEqFZ49sftVBH-jbp4xARqfWM/gviz/tq?tqx=out:csv&sheet=All-Data');
-  populateFilters(globalData);
-  applyFilters();
-}
-
-function populateFilters(data) {
-  const filters = ['Month', 'Enterprise', 'Product_Type', 'QC'];
-  filters.forEach(f => {
-    const select = document.getElementById(f.toLowerCase() + 'Filter');
-    const options = [...new Set(data.map(d => d[f]).filter(Boolean))];
-    select.innerHTML = `<option value="">${f}</option>` + options.map(o => `<option>${o}</option>`).join('');
-  });
-}
-
-function getCurrentFilters() {
-  return {
-    Month: document.getElementById('monthFilter').value,
-    Enterprise: document.getElementById('enterpriseFilter').value,
-    Product_Type: document.getElementById('productTypeFilter').value,
-    QC: document.getElementById('qcFilter').value
-  };
-}
-
-function resetFilters() {
-  ['monthFilter','enterpriseFilter','productTypeFilter','qcFilter'].forEach(id => document.getElementById(id).value = '');
-  applyFilters();
-}
-
-function applyFilters() {
-  const filters = getCurrentFilters();
-  const match = (row, keys) => keys.every(k => !filters[k] || row[k] === filters[k]);
-
-  const filteredMarked = globalData.filter(row => match(row, Object.keys(filters)));
-  const filteredReceived = totalDataGlobal.filter(row => match(row, Object.keys(filters)));
-
-  document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
-  document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
-  document.getElementById('totalSpins').textContent = filteredMarked.length;
-  document.getElementById('uniqueIssues').textContent = new Set(filteredMarked.map(r => r['Issue'])).size;
-  document.getElementById('uniqueEnterprises').textContent = new Set(filteredMarked.map(r => r['Enterprise'])).size;
-
-  renderIssueTable(filteredMarked);
-  renderEnterpriseTable(filteredMarked);
-  renderSpinTable(filteredMarked);
-  renderBarChart(filteredMarked, filteredReceived);
-  renderPieChart(filteredMarked, filteredReceived);
-  renderTrendCharts(filteredMarked);
-}
-
-function renderIssueTable(data) {
-  const map = {};
-  data.forEach(d => {
-    const issue = d.Issue || 'Other';
-    const sev = d.Severity || 'Low';
-    if (!map[issue]) map[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-    map[issue][sev]++;
-    map[issue].Total++;
-  });
-  const tbody = document.querySelector('#issueSummary tbody');
-  tbody.innerHTML = '';
-  Object.entries(map).forEach(([k, v]) => {
-    tbody.innerHTML += `<tr><td>${k}</td><td>${v.Total}</td><td>${v.Blocker}</td><td>${v.High}</td><td>${v.Low}</td></tr>`;
-  });
-}
-
-function renderEnterpriseTable(data) {
-  const map = {};
-  data.forEach(d => {
-    const ent = d.Enterprise || 'Other';
-    const sev = d.Severity || 'Low';
-    if (!map[ent]) map[ent] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
-    map[ent][sev]++;
-    map[ent].Total++;
-  });
-  const tbody = document.querySelector('#enterpriseSummary tbody');
-  tbody.innerHTML = '';
-  Object.entries(map).forEach(([k, v]) => {
-    tbody.innerHTML += `<tr><td>${k}</td><td>${v.Total}</td><td>${v.Blocker}</td><td>${v.High}</td><td>${v.Low}</td></tr>`;
-  });
-}
-
-function renderSpinTable(data) {
-  const tbody = document.querySelector('#spinTable tbody');
-  tbody.innerHTML = '';
-  data.forEach(d => {
-    const row = document.createElement('tr');
-    row.innerHTML = `<td class='clickable' onclick="document.getElementById('spinIframe').src='${d['Spin'] || '#'}'">${d['Spin_id']}</td><td>${d['Issue']}</td><td>${d['Severity']}</td><td>${d['Enterprise']}</td>`;
-    tbody.appendChild(row);
-  });
-}
-function exportTableToCSV(filename) {
-  const table = document.getElementById('spinTable');
-  const rows = [...table.querySelectorAll('tr')].map(row =>
-    [...row.querySelectorAll('th,td')]
-      .map(cell => '"' + cell.innerText + '"')
-      .join(',')
-  );
-  const csv = rows.join("\n"); // ✅ fixed newline
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-}
-
-
-function renderBarChart(data, received) {
-  const total = received.length || 1;
-  const counts = {};
-  data.forEach(d => counts[d.Issue] = (counts[d.Issue] || 0) + 1);
-  const ctx = document.getElementById('issueChart').getContext('2d');
-  if (window.barChartInstance) window.barChartInstance.destroy();
-  window.barChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: Object.keys(counts),
-      datasets: [{ label: 'Issue %', data: Object.values(counts).map(v => ((v/total)*100).toFixed(1)), backgroundColor: '#007bff' }]
-    },
-    options: {
-      plugins: { datalabels: { anchor: 'end', align: 'end', formatter: v => `${v}%`, color: '#000' } },
-      scales: { y: { beginAtZero: true } }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-function renderPieChart(data, received) {
-  const total = received.length || 1;
-  const sev = { Blocker: 0, High: 0, Low: 0 };
-  data.forEach(d => { if (sev[d.Severity] !== undefined) sev[d.Severity]++; });
-  const ctx = document.getElementById('severityPie').getContext('2d');
-  if (window.pieChartInstance) window.pieChartInstance.destroy();
-  window.pieChartInstance = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: Object.keys(sev),
-      datasets: [{ data: Object.values(sev).map(v => ((v/total)*100).toFixed(1)), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
-    },
-    options: {
-      plugins: {
-        legend: { position: 'right' },
-        datalabels: { formatter: value => `${value}%`, color: '#000' }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-function renderTrendCharts(data) {
-  const months = [...new Set(data.map(d => d.Month).filter(Boolean))].sort();
-  const severityLevels = ['Blocker', 'High', 'Low'];
-  const issueSet = [...new Set(data.map(d => d.Issue).filter(Boolean))];
-
-  const sevData = severityLevels.map(sev => ({
-    label: sev,
-    data: months.map(m => {
-      const f = data.filter(d => d.Month === m);
-      const t = f.length || 1;
-      const c = f.filter(d => d.Severity === sev).length;
-      return ((c / t) * 100).toFixed(1);
-    }),
-    fill: false
-  }));
-
-  const ctx1 = document.getElementById('severityTrendChart').getContext('2d');
-  if (window.severityTrendChartInstance) window.severityTrendChartInstance.destroy();
-  window.severityTrendChartInstance = new Chart(ctx1, {
-    type: 'line',
-    data: { labels: months, datasets: sevData },
-    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
-  });
-
-  const issueData = issueSet.map(issue => ({
-    label: issue,
-    data: months.map(m => {
-      const f = data.filter(d => d.Month === m);
-      const t = f.length || 1;
-      const c = f.filter(d => d.Issue === issue).length;
-      return ((c / t) * 100).toFixed(1);
-    }),
-    fill: false
-  }));
-
-  const ctx2 = document.getElementById('issueTrendChart').getContext('2d');
-  if (window.issueTrendChartInstance) window.issueTrendChartInstance.destroy();
-  window.issueTrendChartInstance = new Chart(ctx2, {
-    type: 'line',
-    data: { labels: months, datasets: issueData },
-    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
-  });
-}
-
-window.onload = loadAndRender;
-</script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }
-    .header-bar { font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 20px; }
-    .tabs { display: flex; border-bottom: 2px solid #ccc; margin-bottom: 20px; }
-    .tab { padding: 10px 20px; cursor: pointer; font-weight: bold; color: #555; border-bottom: 3px solid transparent; }
-    .tab.active { color: #007bff; border-color: #007bff; }
-    .filters { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; }
-    .filters select, .filters button { padding: 6px 10px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
-    .filters button { background-color: #007bff; color: white; border: none; }
-    .summary { display: flex; flex-wrap: wrap; justify-content: space-around; background: #e2e6ea; padding: 10px; font-weight: bold; margin-bottom: 20px; }
-    .summary div { flex: 1; text-align: center; }
-    canvas { max-width: 100%; margin-bottom: 30px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #f0f0f0; cursor: pointer; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    iframe { width: 100%; height: 300px; border: none; border-radius: 10px; margin-top: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    .container {
+      display: flex;
+      height: 80vh;
+      border: 1px solid black;
+    }
+    .image-box {
+      flex: 1;
+      border-right: 1px solid black;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    .image-box:last-child {
+      border-right: none;
+    }
+    .image-label {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    img {
+      max-width: 100%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border-top: 1px solid black;
+    }
+    button {
+      flex: 1;
+      padding: 15px;
+      font-size: 16px;
+      border: 1px solid black;
+      cursor: pointer;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
-  <div class="header-bar">360 Issue Dashboard</div>
-  <div class="tabs">
-    <div class="tab active" data-tab="dashboardTab">Dashboard</div>
-    <div class="tab" data-tab="summaryTab">Summary</div>
+
+<div class="container">
+  <div class="image-box">
+    <div class="image-label">Input</div>
+    <img id="inputImg" src="" alt="Input Image">
   </div>
-
-  <div class="filters">
-    <select id="monthFilter"><option value="">Month</option></select>
-    <select id="enterpriseFilter"><option value="">Enterprise</option></select>
-    <select id="productTypeFilter"><option value="">Product Type</option></select>
-    <select id="qcFilter"><option value="">QC</option></select>
-    <button onclick="applyFilters()">Apply</button>
-    <button onclick="resetFilters()">Reset</button>
-    <button onclick="loadAndRender()">🔄</button>
-    <button onclick="exportTableToCSV('issue-data.csv')">📤</button>
+  <div class="image-box">
+    <div class="image-label">Output</div>
+    <img id="outputImg" src="" alt="Output Image">
   </div>
+</div>
 
-  <div class="summary">
-    <div>Total Marked: <span id="markedSpin">0</span></div>
-    <div>Total Received: <span id="receivedSpin">0</span></div>
-    <div>Total Spins: <span id="totalSpins">0</span></div>
-    <div>Unique Issues: <span id="uniqueIssues">0</span></div>
-    <div>Unique Enterprises: <span id="uniqueEnterprises">0</span></div>
-  </div>
+<div class="buttons">
+  <button onclick="mark('Done')">Done</button>
+  <button onclick="mark('Rejected')">Rejected</button>
+  <button onclick="mark('Editing')">Editing</button>
+  <button onclick="next()">Next</button>
+</div>
 
-  <div class="tab-content active" id="dashboardTab">
-    <canvas id="issueChart"></canvas>
-    <canvas id="severityPie"></canvas>
+<script>
+  const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0zbVXhPDU2OtWzjP33DZ5rJ8k2lAWdlGhrIVX3P3sSEO0RlkuIaXL14lfbBup8VwJfQAmPifprQRf/pub?gid=1257618858&single=true&output=csv";
+  let data = [];
+  let currentIndex = 0;
 
-    <table id="issueSummary">
-      <thead>
-        <tr><th>Issue</th><th>Total</th><th>Blocker</th><th>High</th><th>Low</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <table id="enterpriseSummary">
-      <thead>
-        <tr><th>Enterprise</th><th>Total</th><th>Blocker</th><th>High</th><th>Low</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <table id="spinTable">
-      <thead>
-        <tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <iframe id="spinIframe" title="Spin Preview"></iframe>
-  </div>
-
-  <div class="tab-content" id="summaryTab">
-    <h3>Severity Trend (%)</h3>
-    <canvas id="severityTrendChart"></canvas>
-    <h3>Issue Trend (%)</h3>
-    <canvas id="issueTrendChart"></canvas>
-  </div>
-
-  <script>
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-        document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
-      });
+  function loadCSV() {
+    Papa.parse(csvUrl, {
+      download: true,
+      header: true,
+      complete: function(results) {
+        data = results.data;
+        showImage();
+      }
     });
-  </script>
+  }
+
+  function showImage() {
+    if (currentIndex < data.length) {
+      const row = data[currentIndex];
+      document.getElementById("inputImg").src = row["input_image_hres_url"];
+      document.getElementById("outputImg").src = row["output_image_hres_url"];
+    } else {
+      alert("✅ You’ve reached the end of the list.");
+    }
+  }
+
+  function next() {
+    currentIndex++;
+    showImage();
+  }
+
+  function mark(status) {
+    const row = data[currentIndex];
+    console.log(`Marked Row ${currentIndex + 1} | SKU: ${row["sku_id"]} | Status: ${status}`);
+    next();
+  }
+
+  loadCSV();
+</script>
+
 </body>
 </html>
