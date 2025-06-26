@@ -201,8 +201,9 @@
     }
 
     window.onload = async () => {
-      await loadAndRender();
-    };
+  await loadAndRender();
+  applyFilters();
+};
 
     document.addEventListener('DOMContentLoaded', () => {
       loadQCReport();
@@ -421,6 +422,7 @@ function renderSpinTable(data) {
     tbody.appendChild(tr);
   });
 }
+</script>
 <script>
 function loadQCReport() {
   fetch(qcSheetUrl)
