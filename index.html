@@ -554,7 +554,6 @@ window.onload = () => {
   applyFiltersForDashboard();
 };
 
-<script>
 function loadQCReport() {
   fetch(qcSheetUrl)
     .then(res => res.text())
@@ -622,6 +621,5 @@ function applyQCReportFilters() {
 document.addEventListener('DOMContentLoaded', () => {
   loadQCReport();
 });
-</script>
 </body>
 </html>
