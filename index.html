@@ -529,6 +529,42 @@ function applyFilters() {
   document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
 
   populateFilters(globalData);
+
+  // Dashboard rendering
+  renderPieChart(filteredMarked);
+  renderBarChart(filteredMarked);
+  renderIssueTable(filteredMarked);
+  renderEnterpriseIssueTable(filteredMarked);
+  renderSpinTable(filteredMarked);
+
+  // Summary rendering
+  renderSeverityTrendChart(filteredMarked);
+  renderIssueTrendChart(filteredMarked);
+  renderSeverityDetailsTable(filteredMarked);
+  renderIssueDetailsTable(filteredMarked);
+};
+
+  const markedMatch = row =>
+    (!filters.Month || row['Month'] === filters.Month) &&
+    (!filters.Severity || row['Severity'] === filters.Severity) &&
+    (!filters.Issue || row['Issue'] === filters.Issue) &&
+    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
+    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
+    (!filters.QC || row['QC'] === filters.QC);
+
+  const receivedMatch = row =>
+    (!filters.Month || row['Month'] === filters.Month) &&
+    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
+    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
+    (!filters.QC || row['QC'] === filters.QC);
+
+  const filteredMarked = globalData.filter(markedMatch);
+  const filteredReceived = totalDataGlobal.filter(receivedMatch);
+
+  document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
+  document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
+
+  populateFilters(globalData);
   renderSeverityTrendChart(filteredMarked);
   renderIssueTrendChart(filteredMarked);
   renderSeverityDetailsTable(filteredMarked);
