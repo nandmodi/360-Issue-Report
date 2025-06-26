@@ -198,6 +198,7 @@
   </div>
 </div>
 <script>
+// Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -207,6 +208,96 @@
       document.getElementById(id).classList.add('active');
     });
   });
+
+// Missing globalData declaration
+let globalData = [];
+
+// Dashboard Charts + Tables
+function renderPieChart(data) {
+  const sevCount = { Blocker: 0, High: 0, Low: 0 };
+  data.forEach(row => sevCount[row['Severity']] = (sevCount[row['Severity']] || 0) + 1);
+  const total = Object.values(sevCount).reduce((a, b) => a + b, 0);
+  const ctx = document.getElementById('severityPie').getContext('2d');
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: Object.keys(sevCount),
+      datasets: [{ data: Object.values(sevCount), backgroundColor: ['#FF6384', '#36A2EB', '#4BC0C0'] }]
+    },
+    options: { plugins: { legend: { position: 'right' } } }
+  });
+}
+
+function renderBarChart(data) {
+  const issueCounts = {};
+  data.forEach(row => {
+    const issue = row['Issue'] || 'Other';
+    issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+  });
+  const total = Object.values(issueCounts).reduce((a, b) => a + b, 0);
+  const ctx = document.getElementById('issueChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(issueCounts),
+      datasets: [{ label: 'Issue %', data: Object.values(issueCounts).map(v => ((v / total) * 100).toFixed(1)), backgroundColor: '#007bff' }]
+    },
+    options: { scales: { y: { beginAtZero: true } } }
+  });
+}
+
+function renderIssueTable(data) {
+  const tbody = document.getElementById('issueSummary').querySelector('tbody');
+  const issueMap = {};
+  data.forEach(row => {
+    const issue = row['Issue'] || 'Other';
+    const sev = row['Severity'] || 'Low';
+    if (!issueMap[issue]) issueMap[issue] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+    issueMap[issue][sev]++;
+    issueMap[issue].Total++;
+  });
+  tbody.innerHTML = '';
+  const total = data.length;
+  Object.entries(issueMap).forEach(([issue, s]) => {
+    tbody.innerHTML += `<tr><td>${issue}</td>
+<td><b>${((s.Total / total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.Total})</span></td>
+<td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.Blocker})</span></td>
+<td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.High})</span></td>
+<td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.Low})</span></td></tr>`;
+  });
+}
+
+function renderEnterpriseIssueTable(data) {
+  const tbody = document.getElementById('enterpriseSummary').querySelector('tbody');
+  const enterpriseMap = {};
+  data.forEach(row => {
+    const ent = row['Enterprise'] || 'Unknown';
+    const sev = row['Severity'] || 'Low';
+    if (!enterpriseMap[ent]) enterpriseMap[ent] = { Blocker: 0, High: 0, Low: 0, Total: 0 };
+    enterpriseMap[ent][sev]++;
+    enterpriseMap[ent].Total++;
+  });
+  tbody.innerHTML = '';
+  const total = data.length;
+  Object.entries(enterpriseMap).forEach(([ent, s]) => {
+    tbody.innerHTML += `<tr><td>${ent}</td>
+<td><b>${((s.Total / total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.Total})</span></td>
+<td><b>${((s.Blocker / s.Total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.Blocker})</span></td>
+<td><b>${((s.High / s.Total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.High})</span></td>
+<td><b>${((s.Low / s.Total) * 100).toFixed(1)}%</b> <span style="font-size: 0.6em; color: #666;">(${s.Low})</span></td></tr>`;
+  });
+}
+
+function renderSpinTable(data) {
+  const tbody = document.getElementById('spinTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || '#'}'">${row['Spin_id']}</td>
+<td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
+    tbody.appendChild(tr);
+  });
+}
 </script>
 <script>
 // ----- Summary Tab Chart & Table Rendering Functions -----
