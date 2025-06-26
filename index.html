@@ -552,7 +552,10 @@ function applyFiltersForDashboard() {
   renderIssueDetailsTable(filteredMarked);
 }
 
-window.onload = loadAndRender;
+window.onload = () => {
+  loadAndRender();
+  applyFiltersForDashboard();
+};
 </script>
 </body>
 </html>
