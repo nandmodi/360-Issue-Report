@@ -552,7 +552,11 @@ function applyFiltersForDashboard() {
   renderIssueDetailsTable(filteredMarked);
 }
 
-window.onload = () => {
+function applyFilters() {
+  // fallback to avoid runtime error from old event listeners
+}
+
+$1
   loadAndRender();
   applyFiltersForDashboard();
 };
