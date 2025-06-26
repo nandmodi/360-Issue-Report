@@ -58,11 +58,7 @@
 </div>
 <div class="summary-bar" id="dashboardSummaryBar">
   <div>Total Marked Spin: <span id="markedSpin">0</span></div>
-  <div>
-    <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">🔄</button>
-    <button onclick="exportTableToCSV('spin-data.csv')" title="Export CSV" style="background:none;border:none;cursor:pointer;font-size:18px;">📤</button>
-  </div>
-  <div>Total Received Spin: <span id="receivedSpin">0</span></div>
+  
 </div>
   <div>
     <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">🔄</button>
@@ -72,12 +68,7 @@
 </div>
 <div class="summary-section" id="dashboardSummarySection">
   <div class="summary-item">Total Spins <span class="summary-value" id="totalSpins">0</span></div>
-  <div class="summary-item">Unique Issues <span class="summary-value" id="uniqueIssues">0</span></div>
-  <div class="summary-item">Unique Enterprises <span class="summary-value" id="uniqueEnterprises">0</span></div>
-  <div class="summary-item">Blocker Issues <span class="summary-value" id="blockerIssues">0</span></div>
-  <div class="summary-item">High Severity <span class="summary-value" id="highIssues">0</span></div>
-  <div class="summary-item">Low Severity <span class="summary-value" id="lowIssues">0</span></div>
-</div>
+  
   <div class="summary-item">Unique Issues <span class="summary-value" id="uniqueIssues">0</span></div>
   <div class="summary-item">Unique Enterprises <span class="summary-value" id="uniqueEnterprises">0</span></div>
   <div class="summary-item">Blocker Issues <span class="summary-value" id="blockerIssues">0</span></div>
@@ -233,6 +224,8 @@
   </div>
 </div>
 <script>
+const qcSheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaSxWZ-Y3M-wyNiCdN7FSH5kAMMy1cox7D_YRn2sWNkGfo1j4WCGbaedRXgnUKvELK5eAMv334UCaD/pub?gid=0&single=true&output=csv";
+
 // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -556,10 +549,79 @@ function applyFilters() {
   // fallback to avoid runtime error from old event listeners
 }
 
-$1
+window.onload = () => {
   loadAndRender();
   applyFiltersForDashboard();
 };
+
+<script>
+function loadQCReport() {
+  fetch(qcSheetUrl)
+    .then(res => res.text())
+    .then(csv => {
+      Papa.parse(csv, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          rawData = results.data;
+          populateFilters(rawData);
+          applyQCReportFilters();
+        }
+      });
+    });
+}
+
+function applyQCReportFilters() {
+  const [startDate, endDate] = document.getElementById('dateRange').value.split(' - ') || [null, null];
+  const enterprises = Array.from(document.getElementById('enterpriseFilter').selectedOptions).map(o => o.value);
+  const severity = document.getElementById('severityFilter').value;
+  const issues = Array.from(document.getElementById('issueFilter').selectedOptions).map(o => o.value);
+  const users = Array.from(document.getElementById('userFilter').selectedOptions).map(o => o.value);
+
+  const summaryBody = document.querySelector("#summaryTable tbody");
+  const detailBody = document.querySelector("#reportTable tbody");
+  summaryBody.innerHTML = '';
+  detailBody.innerHTML = '';
+
+  const grouped = {};
+  const filtered = rawData.filter(row => {
+    if (startDate && endDate && (row.date < startDate || row.date > endDate)) return false;
+    if (enterprises.length && !enterprises.includes(row.enterprise_name)) return false;
+    if (users.length && !users.includes(row.qc_user_name)) return false;
+    if (severity && parseInt(row[severity]) === 0) return false;
+    const allReasons = `${row.Blocker_Reason || ''},${row.High_Reason || ''},${row.Low_Reason || ''}`;
+    if (issues.length && !issues.some(issue => allReasons.includes(issue))) return false;
+    const d = row.date;
+    if (!grouped[d]) grouped[d] = { skus: new Set(), ents: new Set(), edited: 0, tat: 0, count: 0 };
+    grouped[d].skus.add(row['s.sku_id']);
+    grouped[d].ents.add(row.enterprise_name);
+    grouped[d].edited += +row.edited_images || 0;
+    grouped[d].tat += +row.TAT_minutes || 0;
+    grouped[d].count++;
+    return true;
+  });
+
+  Object.entries(grouped).forEach(([date, stats]) => {
+    summaryBody.innerHTML += `<tr><td>${date}</td><td>${stats.skus.size}</td><td>${stats.ents.size}</td><td>${stats.edited}</td><td>${(stats.tat/stats.count).toFixed(1)}</td></tr>`;
+  });
+
+  filtered.forEach((row, i) => {
+    detailBody.innerHTML += `<tr>
+      <td>${row.date}</td>
+      <td>${row['s.spin_id']}</td>
+      <td>${row['s.sku_id']}</td>
+      <td>${row.enterprise_name}</td>
+      <td>${row.qc_user_name}</td>
+      <td>${row.edited_images}</td>
+      <td>${row.TAT_minutes}</td>
+      <td><a href="#" onclick='openSpinDialog(${JSON.stringify(row)}, ${i})'>View</a></td>
+    </tr>`;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadQCReport();
+});
 </script>
 </body>
 </html>
