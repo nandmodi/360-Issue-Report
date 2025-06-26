@@ -47,16 +47,16 @@
 </head>
 <body>
 <div class="header-bar">360 Issue Dashboard</div>
-<div class="filters" id="filtersSection">
-  <select id="monthFilter" data-label="Month"><option value="">Month</option></select>
-  <select id="severityFilterMain" data-label="Severity"><option value="">Severity</option></select>
-  <select id="issueFilterMain" data-label="Issue"><option value="">Issue</option></select>
-  <select id="enterpriseFilterMain" data-label="Enterprise"><option value="">Enterprise</option></select>
-  <select id="productTypeFilter" data-label="Product_Type"><option value="">Product Type</option></select>
-  <select id="qcFilterMain" data-label="QC"><option value="">QC</option></select>
-  <button onclick="resetFilters()">Reset</button>
+<div class="filters" id="dashboardFilters">
+  <select id="monthFilter" data-label="Month" onchange="applyFiltersForDashboard()"><option value="">Month</option></select>
+  <select id="severityFilterMain" data-label="Severity" onchange="applyFiltersForDashboard()"><option value="">Severity</option></select>
+  <select id="issueFilterMain" data-label="Issue" onchange="applyFiltersForDashboard()"><option value="">Issue</option></select>
+  <select id="enterpriseFilterMain" data-label="Enterprise" onchange="applyFiltersForDashboard()"><option value="">Enterprise</option></select>
+  <select id="productTypeFilter" data-label="Product_Type" onchange="applyFiltersForDashboard()"><option value="">Product Type</option></select>
+  <select id="qcFilterMain" data-label="QC" onchange="applyFiltersForDashboard()"><option value="">QC</option></select>
+  <button onclick="resetFilters('dashboard')">Reset</button>
 </div>
-<div class="summary-bar" id="summaryBar">
+<div class="summary-bar" id="dashboardSummaryBar">
   <div>Total Marked Spin: <span id="markedSpin">0</span></div>
   <div>
     <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">🔄</button>
@@ -64,8 +64,20 @@
   </div>
   <div>Total Received Spin: <span id="receivedSpin">0</span></div>
 </div>
-<div class="summary-section" id="summarySection">
+  <div>
+    <button onclick="loadAndRender()" title="Refresh" style="background:none;border:none;cursor:pointer;font-size:18px;">🔄</button>
+    <button onclick="exportTableToCSV('spin-data.csv')" title="Export CSV" style="background:none;border:none;cursor:pointer;font-size:18px;">📤</button>
+  </div>
+  <div>Total Received Spin: <span id="receivedSpin">0</span></div>
+</div>
+<div class="summary-section" id="dashboardSummarySection">
   <div class="summary-item">Total Spins <span class="summary-value" id="totalSpins">0</span></div>
+  <div class="summary-item">Unique Issues <span class="summary-value" id="uniqueIssues">0</span></div>
+  <div class="summary-item">Unique Enterprises <span class="summary-value" id="uniqueEnterprises">0</span></div>
+  <div class="summary-item">Blocker Issues <span class="summary-value" id="blockerIssues">0</span></div>
+  <div class="summary-item">High Severity <span class="summary-value" id="highIssues">0</span></div>
+  <div class="summary-item">Low Severity <span class="summary-value" id="lowIssues">0</span></div>
+</div>
   <div class="summary-item">Unique Issues <span class="summary-value" id="uniqueIssues">0</span></div>
   <div class="summary-item">Unique Enterprises <span class="summary-value" id="uniqueEnterprises">0</span></div>
   <div class="summary-item">Blocker Issues <span class="summary-value" id="blockerIssues">0</span></div>
@@ -498,7 +510,7 @@ function resetFilters() {
   applyFilters();
 }
 
-function applyFilters() {
+function applyFiltersForDashboard() {
   const filters = {
     Month: document.getElementById('monthFilter').value,
     Severity: document.getElementById('severityFilterMain').value,
@@ -529,42 +541,11 @@ function applyFilters() {
   document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
 
   populateFilters(globalData);
-
-  // Dashboard rendering
   renderPieChart(filteredMarked);
   renderBarChart(filteredMarked);
   renderIssueTable(filteredMarked);
   renderEnterpriseIssueTable(filteredMarked);
   renderSpinTable(filteredMarked);
-
-  // Summary rendering
-  renderSeverityTrendChart(filteredMarked);
-  renderIssueTrendChart(filteredMarked);
-  renderSeverityDetailsTable(filteredMarked);
-  renderIssueDetailsTable(filteredMarked);
-};
-
-  const markedMatch = row =>
-    (!filters.Month || row['Month'] === filters.Month) &&
-    (!filters.Severity || row['Severity'] === filters.Severity) &&
-    (!filters.Issue || row['Issue'] === filters.Issue) &&
-    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
-    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
-    (!filters.QC || row['QC'] === filters.QC);
-
-  const receivedMatch = row =>
-    (!filters.Month || row['Month'] === filters.Month) &&
-    (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
-    (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
-    (!filters.QC || row['QC'] === filters.QC);
-
-  const filteredMarked = globalData.filter(markedMatch);
-  const filteredReceived = totalDataGlobal.filter(receivedMatch);
-
-  document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
-  document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
-
-  populateFilters(globalData);
   renderSeverityTrendChart(filteredMarked);
   renderIssueTrendChart(filteredMarked);
   renderSeverityDetailsTable(filteredMarked);
