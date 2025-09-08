@@ -763,7 +763,9 @@
     const header = document.getElementById('severityDetailsWeekHeader');
     const tbody = document.getElementById('severityDetailsWeekBody');
 
-    const weeks = Object.values(weekRanges).map(w => w.name).reverse();
+    const weeks = Object.keys(weekRanges)
+  .sort((a, b) => weekRanges[b].start - weekRanges[a].start)
+  .map(key => weekRanges[key].name);
     const severitiesSet = new Set(data.map(d => d.Severity).filter(Boolean));
     const severities = Array.from(severitiesSet);
 
@@ -901,4 +903,5 @@
 
 </body>
 </html>
+
 
