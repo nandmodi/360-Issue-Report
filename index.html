@@ -927,7 +927,7 @@
     const header = document.getElementById('issueDetailsHeader');
     const tbody = document.getElementById('issueDetailsBody');
 
-    const monthsSet = new Set(data.map(d => d.Morrow).filter(Boolean));
+    const monthsSet = new Set(data.map(d => d.Month).filter(Boolean));
     const issuesSet = new Set(data.map(d => d.Issue).filter(Boolean));
 
     const months = Array.from(monthsSet).sort((a,b) => new Date('1 ' + b) - new Date('1 ' + a));
@@ -937,7 +937,7 @@
 
     const totalsPerMonth = {};
     data.forEach(row => {
-      const month = row.Morrow || 'Unknown';
+      const month = row.Month || 'Unknown';
       totalsPerMonth[month] = (totalsPerMonth[month] || 0) + 1;
     });
 
