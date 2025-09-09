@@ -617,16 +617,8 @@
 
   <!-- Summary Tab -->
   <div class="main-content tab-content" id="summaryTab">
-    <!-- Filters for Summary Tab -->
-    <div class="summary-filters" id="summaryFiltersSection">
-      <select id="summaryMonthFilter" data-label="Month"><option value="">Month</option></select>
-      <select id="summarySeverityFilter" data-label="Severity"><option value="">Severity</option></select>
-      <select id="summaryIssueFilter" data-label="Issue"><option value="">Issue</option></select>
-      <select id="summaryEnterpriseFilter" data-label="Enterprise"><option value="">Enterprise</option></select>
-      <select id="summaryProductTypeFilter" data-label="Product_Type"><option value="">Product Type</option></select>
-      <select id="summaryQcFilter" data-label="QC"><option value="">QC</option></select>
-      <button onclick="resetSummaryFilters()"><i class="fas fa-sync-alt"></i> Reset</button>
-    </div>
+    <!-- Removed duplicate filters section from summary tab -->
+    <!-- Now using the main filters for both tabs -->
 
     <div class="metric-card">
       <div class="metric-header">
@@ -734,7 +726,7 @@
             <th onclick="sortTable(this)">August</th>
             <th onclick="sortTable(this)">July</th>
             <th onclick="sortTable(this)">June</th>
-          </tr>
+            </tr>
         </thead>
         <tbody id="issueDetailsBody">
           <tr>
@@ -802,7 +794,6 @@
   </div>
 </div>
 
-<!-- The rest of the JavaScript code remains the same as in the original -->
 <script>
   // JavaScript code from the original remains unchanged
   let globalData = [];
@@ -883,16 +874,6 @@
     applyFilters();
   }
 
-  function resetSummaryFilters() {
-    document.getElementById('summaryMonthFilter').value = '';
-    document.getElementById('summarySeverityFilter').value = '';
-    document.getElementById('summaryIssueFilter').value = '';
-    document.getElementById('summaryEnterpriseFilter').value = '';
-    document.getElementById('summaryProductTypeFilter').value = '';
-    document.getElementById('summaryQcFilter').value = '';
-    applySummaryFilters();
-  }
-
   function populateFilters(data) {
     const config = {
       monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
@@ -900,9 +881,7 @@
     };
     Object.entries(config).forEach(([id, key]) => {
       const select = document.getElementById(id);
-      const summarySelect = document.getElementById('summary' + id.charAt(0).toUpperCase() + id.slice(1));
       const selectedValue = select.value;
-      const summarySelectedValue = summarySelect.value;
       const defaultText = select.getAttribute('data-label') || key;
       let options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
 
@@ -915,11 +894,6 @@
       select.innerHTML = `<option value="">${defaultText}</option>` +
         options.map(v => `<option value="${v}" ${v === selectedValue ? 'selected' : ''}>${v}</option>`).join('');
       select.onchange = applyFilters;
-      
-      // Also populate the summary filters
-      summarySelect.innerHTML = `<option value="">${defaultText}</option>` +
-        options.map(v => `<option value="${v}" ${v === summarySelectedValue ? 'selected' : ''}>${v}</option>`).join('');
-      summarySelect.onchange = applySummaryFilters;
     });
   }
 
@@ -991,47 +965,7 @@
     renderPieChart(filteredMarked);
     renderBarChart(filteredMarked);
 
-    // Also update summary tab when filters change
-    applySummaryFilters();
-  }
-
-  function applySummaryFilters() {
-    const filters = {
-      Month: document.getElementById('summaryMonthFilter').value,
-      Severity: document.getElementById('summarySeverityFilter').value,
-      Issue: document.getElementById('summaryIssueFilter').value,
-      Enterprise: document.getElementById('summaryEnterpriseFilter').value,
-      Product_Type: document.getElementById('summaryProductTypeFilter').value,
-      QC: document.getElementById('summaryQcFilter').value
-    };
-
-    // Find the week range object that matches the selected filter name.
-    const weekFilterKey = Object.keys(weekRanges).find(key => weekRanges[key].name === filters.Month);
-    const isWeekFilter = !!weekFilterKey;
-    const weekRange = isWeekFilter ? weekRanges[weekFilterKey] : null;
-
-    const markedMatch = row => {
-      const rowDate = row['Date'] ? new Date(row['Date']) : null;
-      if (!rowDate) return false;
-
-      const rowMonth = row['Month'];
-      
-      const monthMatch = !filters.Month || (
-        !isWeekFilter && rowMonth === filters.Month
-      ) || (
-        isWeekFilter && rowDate >= weekRange.start && rowDate <= weekRange.end
-      );
-
-      return monthMatch &&
-        (!filters.Severity || row['Severity'] === filters.Severity) &&
-        (!filters.Issue || row['Issue'] === filters.Issue) &&
-        (!filters.Enterprise || row['Enterprise'] === filters.Enterprise) &&
-        (!filters.Product_Type || row['Product_Type'] === filters.Product_Type) &&
-        (!filters.QC || row['QC'] === filters.QC);
-    };
-
-    const filteredMarked = globalData.filter(markedMatch);
-
+    // Update summary tab with the same filtered data
     renderSeverityTrendChart(filteredMarked);
     renderIssueTrendChart(filteredMarked);
     renderSeverityDetailsTable(filteredMarked);
@@ -1421,7 +1355,7 @@
 
     const totalsPerMonth = {};
     data.forEach(row => {
-      const month = row.Month || 'Unknown';
+      const month = row.Morrow || 'Unknown';
       totalsPerMonth[month] = (totalsPerMonth[month] || 0) + 1;
     });
 
@@ -1577,10 +1511,18 @@
       const id = tab.getAttribute('data-tab');
       document.getElementById(id).classList.add('active');
 
+      // Show/hide summary bar and section based on active tab
       const showFilters = id === 'dashboardTab';
-      document.getElementById('filtersSection').style.display = showFilters ? 'flex' : 'none';
       document.getElementById('summaryBar').style.display = showFilters ? 'flex' : 'none';
       document.getElementById('summarySection').style.display = showFilters ? 'flex' : 'none';
+      
+      // Adjust main content margin based on which tab is active
+      const mainContent = document.querySelector('.main-content');
+      if (id === 'dashboardTab') {
+        mainContent.style.marginTop = '240px';
+      } else {
+        mainContent.style.marginTop = '142px'; // Adjust for filters only
+      }
     });
   });
 
