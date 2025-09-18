@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <style>
-  /* Your CSS unchanged */
+  /* Your CSS unchanged (kept) */
   body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }
   .header-bar { position: fixed; top: 0; left: 0; right: 0; background: #fff; padding: 10px 0; text-align: center; font-weight: bold; font-size: 22px; z-index: 10000; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
   .tabs { position: fixed; top: 48px; left: 0; right: 0; background: #fff; display: flex; border-bottom: 2px solid #ccc; z-index: 10000; }
@@ -41,17 +41,87 @@
   .chart-container { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); flex: 1; }
   #severityTrendChart, #issueTrendChart { height: 300px; }
   .summary-tables { margin-top: 30px; }
+
+  /* ===== Dropdown: added per your request ===== */
+  .header-bar-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* keeps title centered even with left menu */
+  }
+  .menu-left {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10001; /* above tabs */
+  }
+
+  /* Provided dropdown styles (kept, with tiny tweaks for header fit) */
+  .dropbtn {
+    background-color: #04AA6D;
+    color: white;
+    padding: 8px 12px; /* reduced to fit 48px header */
+    font-size: 14px;   /* reduced to fit 48px header */
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .dropdown {
+    position: relative;
+    display: inline-block;
+  }
+  .dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f1f1f1;
+    min-width: 200px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 10002;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .dropdown-content a {
+    color: #111;
+    padding: 10px 14px;
+    text-decoration: none;
+    display: block;
+    font-size: 14px;
+  }
+  .dropdown-content a:hover { background-color: #ddd; }
+  .dropdown:hover .dropdown-content { display: block; }
+  .dropdown:hover .dropbtn { background-color: #3e8e41; }
+  /* ===== End Dropdown ===== */
+
+  /* Small screens: keep title readable if menu wraps */
+  @media (max-width: 480px) {
+    .dropbtn { font-size: 13px; padding: 8px 10px; }
+    .header-bar { padding: 12px 0; }
+  }
 </style>
 </head>
 <body>
 
-<div class="header-bar">360 Issue Dashboard</div>
+<!-- Header with left-corner menu -->
+<div class="header-bar">
+  <div class="header-bar-inner">
+    <div class="menu-left">
+      <div class="dropdown">
+        <button class="dropbtn">Dropdown</button>
+        <div class="dropdown-content">
+          <a href="https://nandmodi.github.io/360-Issue-Reports/validation-failed.html" target="_blank" rel="noopener">Validation</a>
+        </div>
+      </div>
+    </div>
+    <div>360 Issue Dashboard</div>
+  </div>
+</div>
 
 <div class="tabs">
   <div class="tab active" data-tab="dashboardTab">Dashboard</div>
   <div class="tab" data-tab="summaryTab">Summary</div>
 </div>
-
 
 <div class="filters" id="filtersSection">
   <select id="monthFilter" data-label="Month"><option value="">Month</option></select>
@@ -114,7 +184,7 @@
             <th onclick="sortTable(this)">High</th>
             <th onclick="sortTable(this)">Low</th>
           </tr>
-</thead>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -154,7 +224,7 @@
       <tbody id="severityDetailsBody"></tbody>
     </table>
 
- <div class="summary-tables">
+    <div class="summary-tables">
       <h3>Severity Details (Week-wise)</h3>
       <table id="severityDetailsWeekTable">
         <thead><tr id="severityDetailsWeekHeader"><th onclick="sortTable(this)">Severity</th></tr></thead>
@@ -168,7 +238,6 @@
       <tbody id="issueDetailsBody"></tbody>
     </table>
 
-   
     <div class="summary-tables">
       <h3>Issue Details (Week-wise)</h3>
       <table id="issueDetailsWeekTable">
@@ -212,7 +281,6 @@
     );
   }
 
-  // Helper function to format week range strings
   function getFormattedWeekRange(start, end) {
     const startMonth = start.toLocaleString('default', { month: 'short' });
     const endMonth = end.toLocaleString('default', { month: 'short' });
@@ -221,30 +289,21 @@
     return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
   }
 
-  // This function dynamically calculates the last four complete weeks.
   function calculateLastFourWeeks() {
     weekRanges = {};
     const today = new Date();
-    // Start with the most recent Sunday as the end of the first week.
-    // getDay() returns 0 for Sunday, so we subtract that many days to get to the Sunday of the current week.
     const lastSunday = new Date(today.setDate(today.getDate() - today.getDay()));
-
     for (let i = 0; i < 4; i++) {
-        // Create a new date object for the end of the week, moving back 7 days each iteration.
-        const weekEndDate = new Date(lastSunday.getTime());
-        weekEndDate.setDate(lastSunday.getDate() - (i * 7));
-        
-        // Calculate the start date for the week (7 days before end date)
-        const weekStartDate = new Date(weekEndDate.getTime());
-        weekStartDate.setDate(weekEndDate.getDate() - 6);
-
-        // This is the dynamic label for the filter dropdown
-        const weekName = `Week ${i + 1}`;
-        weekRanges[weekName] = { 
-            name: `${weekName}: ${getFormattedWeekRange(weekStartDate, weekEndDate)}`,
-            start: weekStartDate,
-            end: weekEndDate 
-        };
+      const weekEndDate = new Date(lastSunday.getTime());
+      weekEndDate.setDate(lastSunday.getDate() - (i * 7));
+      const weekStartDate = new Date(weekEndDate.getTime());
+      weekStartDate.setDate(weekEndDate.getDate() - 6);
+      const weekName = `Week ${i + 1}`;
+      weekRanges[weekName] = {
+        name: `${weekName}: ${getFormattedWeekRange(weekStartDate, weekEndDate)}`,
+        start: weekStartDate,
+        end: weekEndDate
+      };
     }
   }
 
@@ -258,7 +317,6 @@
     applyFilters();
   }
 
-
   function populateFilters(data) {
     const config = {
       monthFilter: 'Month', severityFilter: 'Severity', issueFilter: 'Issue',
@@ -271,7 +329,6 @@
       let options = [...new Set(data.map(d => d[key] || '').filter(Boolean))];
 
       if (id === 'monthFilter') {
-        // Display the dynamic week ranges in the dropdown, with Week 1 at the top.
         const weekOptions = Object.values(weekRanges).map(w => w.name).reverse();
         options = [...options, ...weekOptions];
       }
@@ -292,7 +349,6 @@
       QC: document.getElementById('qcFilter').value
     };
 
-    // Find the week range object that matches the selected filter name.
     const weekFilterKey = Object.keys(weekRanges).find(key => weekRanges[key].name === filters.Month);
     const isWeekFilter = !!weekFilterKey;
     const weekRange = isWeekFilter ? weekRanges[weekFilterKey] : null;
@@ -300,9 +356,8 @@
     const markedMatch = row => {
       const rowDate = row['Date'] ? new Date(row['Date']) : null;
       if (!rowDate) return false;
-
       const rowMonth = row['Month'];
-      
+
       const monthMatch = !filters.Month || (
         !isWeekFilter && rowMonth === filters.Month
       ) || (
@@ -320,9 +375,8 @@
     const receivedMatch = row => {
       const rowDate = row['Date'] ? new Date(row['Date']) : null;
       if (!rowDate) return false;
-
       const rowMonth = row['Month'];
-      
+
       const monthMatch = !filters.Month || (
         !isWeekFilter && rowMonth === filters.Month
       ) || (
@@ -491,12 +545,7 @@
       matrix[sev][month] = (matrix[sev][month] || 0) + 1;
     });
 
-    // Updated color map: Blocker is red
-    const colorsMap = {
-      Blocker: '#FF0000',  // red
-      High: '#FF6384',
-      Low: '#36A2EB'
-    };
+    const colorsMap = { Blocker: '#FF0000', High: '#FF6384', Low: '#36A2EB' };
     const colors = severities.map(sev => colorsMap[sev] || '#000000');
 
     const datasets = severities.map((sev, i) => ({
@@ -526,28 +575,16 @@
           tooltip: {
             mode: 'index',
             intersect: false,
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
-            }
+            callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` }
           },
           datalabels: {
-            display: true,
-            align: 'end',
-            anchor: 'end',
-            offset: 4,
-            formatter: value => `${value}%`,
-            color: '#000',
-            font: { size: 12 }
+            display: true, align: 'end', anchor: 'end', offset: 4,
+            formatter: value => `${value}%`, color: '#000', font: { size: 12 }
           }
         },
         interaction: { mode: 'nearest', intersect: false },
         scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
-            title: { display: true, text: 'Percentage (%)' },
-            ticks: { callback: val => val + '%' }
-          },
+          y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' }, ticks: { callback: val => val + '%' } },
           x: { title: { display: true, text: 'Month' } }
         }
       },
@@ -615,18 +652,13 @@
         plugins: {
           legend: {
             position: 'top',
-            labels: {
-              filter: (legendItem) => legendItem.text !== '',
-            },
+            labels: { filter: (legendItem) => legendItem.text !== '' },
             onClick: (e, legendItem, legend) => {
               const chart = legend.chart;
               const index = legendItem.datasetIndex;
 
               if (index === 0) {
-                chart.data.datasets.forEach((ds, i) => {
-                  if (i === 0) return;
-                  ds.hidden = false;
-                });
+                chart.data.datasets.forEach((ds, i) => { if (i !== 0) ds.hidden = false; });
                 chart.update();
               } else {
                 const selectedDataset = chart.data.datasets[index];
@@ -634,15 +666,9 @@
                 const visibleCount = chart.data.datasets.filter(ds => !ds.hidden && ds !== chart.data.datasets[0]).length;
 
                 if (isHidden || visibleCount !== 1) {
-                  chart.data.datasets.forEach((ds, i) => {
-                    if (i === 0) return;
-                    ds.hidden = i !== index;
-                  });
+                  chart.data.datasets.forEach((ds, i) => { if (i !== 0) ds.hidden = i !== index; });
                 } else {
-                  chart.data.datasets.forEach((ds, i) => {
-                    if (i === 0) return;
-                    ds.hidden = false;
-                  });
+                  chart.data.datasets.forEach((ds, i) => { if (i !== 0) ds.hidden = false; });
                 }
                 chart.update();
               }
@@ -651,28 +677,16 @@
           tooltip: {
             mode: 'index',
             intersect: false,
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
-            }
+            callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` }
           },
           datalabels: {
-            display: true,
-            align: 'end',
-            anchor: 'end',
-            offset: 4,
-            formatter: value => `${value}%`,
-            color: '#000',
-            font: { size: 12 }
+            display: true, align: 'end', anchor: 'end', offset: 4,
+            formatter: value => `${value}%`, color: '#000', font: { size: 12 }
           }
         },
         interaction: { mode: 'nearest', intersect: false },
         scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
-            title: { display: true, text: 'Percentage (%)' },
-            ticks: { callback: val => val + '%' }
-          },
+          y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' }, ticks: { callback: val => val + '%' } },
           x: { title: { display: true, text: 'Month' } }
         }
       },
@@ -761,8 +775,8 @@
     const tbody = document.getElementById('severityDetailsWeekBody');
 
     const weeks = Object.keys(weekRanges)
-  .sort((a, b) => weekRanges[b].start - weekRanges[a].start)
-  .map(key => weekRanges[key].name);
+      .sort((a, b) => weekRanges[b].start - weekRanges[a].start)
+      .map(key => weekRanges[key].name);
     const severitiesSet = new Set(data.map(d => d.Severity).filter(Boolean));
     const severities = Array.from(severitiesSet);
 
@@ -773,14 +787,14 @@
 
     data.forEach(row => {
       const rowDate = new Date(row['Date']);
-      const weekName = Object.keys(weekRanges).find(key => 
-          rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end
+      const weekName = Object.keys(weekRanges).find(key =>
+        rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end
       );
 
       if (weekName) {
         const sev = row.Severity || 'Low';
         const formattedWeekName = weekRanges[weekName].name;
-        
+
         totalsPerWeek[formattedWeekName] = (totalsPerWeek[formattedWeekName] || 0) + 1;
         if (!matrix[sev]) matrix[sev] = {};
         matrix[sev][formattedWeekName] = (matrix[sev][formattedWeekName] || 0) + 1;
@@ -814,14 +828,14 @@
 
     data.forEach(row => {
       const rowDate = new Date(row['Date']);
-      const weekName = Object.keys(weekRanges).find(key => 
-          rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end
+      const weekName = Object.keys(weekRanges).find(key =>
+        rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end
       );
 
       if (weekName) {
         const issue = row.Issue || 'Other';
         const formattedWeekName = weekRanges[weekName].name;
-        
+
         totalsPerWeek[formattedWeekName] = (totalsPerWeek[formattedWeekName] || 0) + 1;
         if (!matrix[issue]) matrix[issue] = {};
         matrix[issue][formattedWeekName] = (matrix[issue][formattedWeekName] || 0) + 1;
@@ -840,45 +854,37 @@
     });
   }
 
-
   function sortTable(header) {
-  const table = header.closest('table');
-  const tbody = table.querySelector('tbody');
-  const index = Array.from(header.parentNode.children).indexOf(header);
-  const rows = Array.from(tbody.querySelectorAll('tr'));
+    const table = header.closest('table');
+    const tbody = table.querySelector('tbody');
+    const index = Array.from(header.parentNode.children).indexOf(header);
+    const rows = Array.from(tbody.querySelectorAll('tr'));
 
-  // Remove old sort indicators
-  Array.from(header.parentNode.children).forEach(th => {
-    if (th !== header) th.classList.remove('asc', 'desc');
-  });
+    Array.from(header.parentNode.children).forEach(th => { if (th !== header) th.classList.remove('asc', 'desc'); });
 
-  // Determine current sort direction
-  const isDesc = header.classList.contains('desc');
-  header.classList.toggle('desc', !isDesc);
-  header.classList.toggle('asc', isDesc);
+    const isDesc = header.classList.contains('desc');
+    header.classList.toggle('desc', !isDesc);
+    header.classList.toggle('asc', isDesc);
 
-  const parseCell = (text) => {
-    const match = text.match(/([\d.]+)/); // capture the first number
-    return match ? parseFloat(match[1]) : text.trim().toLowerCase();
-  };
+    const parseCell = (text) => {
+      const match = text.match(/([\d.]+)/);
+      return match ? parseFloat(match[1]) : text.trim().toLowerCase();
+    };
 
-  rows.sort((a, b) => {
-    const valA = parseCell(a.children[index].textContent);
-    const valB = parseCell(b.children[index].textContent);
+    rows.sort((a, b) => {
+      const valA = parseCell(a.children[index].textContent);
+      const valB = parseCell(b.children[index].textContent);
+      const isNumeric = !isNaN(valA) && !isNaN(valB);
+      if (isNumeric) {
+        return (isDesc ? valA - valB : valB - valA);
+      } else {
+        return isDesc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+    });
 
-    const isNumeric = !isNaN(valA) && !isNaN(valB);
-    if (isNumeric) {
-      return (isDesc ? valA - valB : valB - valA); // note: reversed due to toggle
-    } else {
-      return isDesc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    }
-  });
-
-  // Rebuild sorted tbody
-  tbody.innerHTML = '';
-  rows.forEach(row => tbody.appendChild(row));
-}
-
+    tbody.innerHTML = '';
+    rows.forEach(row => tbody.appendChild(row));
+  }
 
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -896,11 +902,24 @@
   });
 
   window.onload = loadAndRender;
+
+  /* Minimal CSV export helper already referenced by your button */
+  function exportTableToCSV(filename) {
+    const rows = [...document.querySelectorAll('#spinTable tr')].map(tr =>
+      [...tr.querySelectorAll('th,td')].map(td => `"${td.innerText.replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 </body>
 </html>
-
-
-
-
